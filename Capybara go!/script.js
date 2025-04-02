@@ -1,7 +1,6 @@
 // Startscherm
 // Toon startscherm
 // Toon besturing (WAD + J)
-// Toon verhaal
 // Toon highscore
 // Wacht op "Start" knop
 
@@ -11,6 +10,7 @@
 // Initialiseer capybara (positie, snelheid, grootte, levens)
 // Initialiseer vijanden, platformen, appels en hartjes
 // Zet score en highscore op 0
+// Toon verhaal
 
 // Spel loop
 // Herhaal zolang capybara niet dood is of level niet voltooid:
@@ -30,6 +30,7 @@
 // Pauze menu knop
 // Geluid aanpassen
 // Opnieuw beginnen
+// Continue
 // Controls 
 
 // Als capybara geen levens meer heeft
@@ -37,7 +38,5 @@
 // Toon score en highscore
 // Geef optie om opnieuw te starten
 
-// Als capybara het einde van het level bereikt
-// Toon overwinning scherm
 // Update highscore indien nodig
 // Geef optie om opnieuw te spelen

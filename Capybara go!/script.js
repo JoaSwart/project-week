@@ -27,6 +27,11 @@
 //     - Speel geluiden indien nodig
 //     - Teken alles op het scherm
 
+// Pauze menu knop
+// Geluid aanpassen
+// Opnieuw beginnen
+// Controls 
+
 // Als capybara geen levens meer heeft
 // Toon game over scherm
 // Toon score en highscore

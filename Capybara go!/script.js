@@ -45,16 +45,16 @@ class Platform{
         }
         const widths = [ //random widths for the platforms en %kans dat ze voorkomen 
             {width: 100, chance: 0.15},
-            {width: 250, chance: 0.50},
-            {width: 150, chance: 0.25},
+            {width: 150, chance: 0.15},
+            {width: 250, chance: 0.5},
             {width: 350, chance: 0.10},
         ];
         const getRandomWidth = () => { //functie om een random width te krijgen
-            const random = Math.random();
+            const random = Math.random(); //random getal tussen 0 en 1
             let cumulativeChance = 0; //de kans dat de random width voorkomt
 
             for (const option of widths){
-                cumulativeChance += option.chance; //optie.kans
+                cumulativeChance += option.chance; //de kans dat de random width voorkomt optelt
                 if (random < cumulativeChance){ 
                     return option.width; //random width
                 }
@@ -75,13 +75,30 @@ const platforms = [] //lege array voor random platforms
 
 // genereerd random platforms met verschillende breedtes en posities
 function generatePlatforms(num){
-    let safeSpaceWidth = 700 //ruimte tussen de platforms om te lopen
+    let safeSpaceWidth = 700; // Ruimte om te starten zonder platforms
+    let minGap = 150; // Minimale horizontale afstand tussen platforms
+    let minVerticalGap = 100; // Minimale verticale afstand (zodat je erop kunt springen)
+    let maxTries = 10; // Maximaal aantal pogingen om een platform te plaatsen zonder overlap
 
-    for (let i = 0; i < num; i++){ 
-        let randomX = safeSpaceWidth + i * 400 + Math.random() * 100 // eerst safe space en dan de random x-positie van de platforms
-        let randomY = 300 + Math.random() * 400 //random y-positie
+    let placedPlatforms = []; // Array om de geplaatste platforms bij te houden
 
-        platforms.push(new Platform({ x: randomX, y: randomY })) //voeg een nieuwe platform toe aan de array
+    for (let i = 0; i < num; i++) {
+        let platformCount = Math.floor(Math.random() * 2) + 1; // Kies 1-2 platforms tegelijk
+        let baseX = safeSpaceWidth + i * 400 + Math.random() * 100; // Basis X-positie
+        let lastY = 0; // Houdt de vorige Y-positie bij om overlap te voorkomen
+
+        for (let j = 0; j < platformCount; j++) {
+            let offsetX = j * (Math.random() * 200 + minGap); // Zorgt dat platforms niet overlappen
+            let randomY;
+
+            do {
+                randomY = 200 + Math.random() * 450; // Random hoogte. 300 is de start hoogte
+            } while (Math.abs(randomY - lastY) < minVerticalGap); // Check dat platforms niet te dicht boven elkaar zitten
+
+            lastY = randomY; // Sla de laatst gekozen Y op voor de volgende check
+
+            platforms.push(new Platform({ x: baseX + offsetX, y: randomY }));
+        }
     }
 }
 generatePlatforms(30) //genereer een hoeveelheid platforms

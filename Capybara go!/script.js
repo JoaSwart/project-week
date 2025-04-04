@@ -4,7 +4,7 @@ const c = canvas.getContext('2d'); //c = context
 canvas.width = window.innerWidth; //breedte van het canvas
 canvas.height = window.innerHeight; //hoogte van het canvas
 
-const gravity = 1.5 //zwaartekracht
+const gravity = 1 //zwaartekracht
 
 
 class Player {
@@ -17,8 +17,8 @@ class Player {
             x: 0,
             y: 1   //hoe hoger dit getal, hoe sneller de speler naar beneden valt
         }
-        this.width = 30 //breedte en hoogte van de speler
-        this.height = 30
+        this.width = 40 //breedte en hoogte van de speler
+        this.height = 40
     }
 
     draw(){
@@ -43,33 +43,30 @@ class Platform{
             x,
             y
         }
-
-        this.width = 200
+        this.width = Math.random() < 0.5 ? 200 : 100; //random width, 50% kans op 200 en 50% kans op 75
         this.height = 20
     }
     draw(){
         c.fillStyle = 'blue' //kleur van de platform
         c.fillRect(this.position.x, this.position.y, this.width, this.height) //teken de platform
-        
     }
 }
 
 const player = new Player() //maak een speler aan
-const platforms = [new Platform({
-    x: 200,
-    y: 400
-}), new Platform({
-    x: 600,
-    y: 350
-})
-, new Platform({
-    x: 1000,
-    y: 500
-}), new Platform({
-    x: 1600,
-    y: 400
-})
-] //array voor de platforms
+const platforms = [] //lege array voor random platforms
+
+// genereerd random platforms met verschillende breedtes en posities
+function generatePlatforms(num){
+    let safeSpaceWidth = 700 //ruimte tussen de platforms om te lopen
+
+    for (let i = 0; i < num; i++){ 
+        let randomX = safeSpaceWidth + i * 400 + Math.random() * 100 // eerst safe space en dan de random x-positie van de platforms
+        let randomY = 300 + Math.random() * 400 //random y-positie
+
+        platforms.push(new Platform({ x: randomX, y: randomY })) //voeg een nieuwe platform toe aan de array
+    }
+}
+generatePlatforms(30) //genereer een hoeveelheid platforms
 
 const keys = {
     right: { pressed: false }, //toetsen voor de speler

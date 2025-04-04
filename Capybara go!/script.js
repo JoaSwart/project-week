@@ -7,33 +7,120 @@ canvas.height = window.innerHeight; //hoogte van het canvas
 const gravity = 1 //zwaartekracht
 
 
+// parralax
+class Layer {
+    constructor(imageSrc, speedModifier) {
+        this.image = new Image();
+        this.image.src = imageSrc;
+        this.speedModifier = speedModifier;
+        this.x = 0;
+        this.y = 0;
+        this.drawWidth = 0;
+    }
+
+    calculateDrawWidth() {
+        if (this.image.naturalHeight > 0) {
+            const aspectRatio = this.image.naturalWidth / this.image.naturalHeight;
+            this.drawWidth = canvas.height * aspectRatio;
+        } else {
+            this.drawWidth = canvas.width;
+        }
+    }
+
+    update(scrollSpeed) {
+        if (this.drawWidth === 0 && this.image.naturalWidth > 0) {
+            this.calculateDrawWidth();
+        }
+        if (this.drawWidth <= 0) return;
+
+        this.x -= scrollSpeed * this.speedModifier;
+
+        if (this.x <= -this.drawWidth) {
+            const times = Math.ceil(Math.abs(this.x) / this.drawWidth);
+            this.x += this.drawWidth * times;
+        } else if (this.x > 0 && scrollSpeed < 0) {
+             const times = Math.ceil(this.x / this.drawWidth);
+             this.x -= this.drawWidth * times;
+        }
+    }
+
+    draw() {
+        if (this.drawWidth <= 0) return;
+        c.drawImage(this.image, this.x, this.y, this.drawWidth, canvas.height);
+        c.drawImage(this.image, this.x + this.drawWidth, this.y, this.drawWidth, canvas.height);
+        c.drawImage(this.image, this.x - this.drawWidth, this.y, this.drawWidth, canvas.height);
+    }
+}
+
+// de parralax lagen
+const layers = [
+    new Layer('Background1/lucht.png', 0.1),
+    new Layer('Background1/wolken.png', 0.3),
+    new Layer('Background1/achtergrondgras.png', 0.6),
+    new Layer('Background1/voorgrondgras.png', 1.0)
+];
+
+
+// capybara familie
+const capyFamilyImage = new Image();
+capyFamilyImage.src = 'images/capyfamily.png';
+
+const capybara = new Image(); // Player image
+capybara.src = 'images/capybara-character.png'; // Player image source
+
+const capyFamily = {
+    image: capyFamilyImage,
+    x: 10,
+    y: 0,
+    drawWidth: 0,
+    drawHeight: 90,
+    text: "We're hungry!",
+    showText: true,
+};
+
+
+
 class Player {
     constructor(){
         this.position = { //positie van de speler
-            x: 100,
-            y: 100
+            x: 100, 
+            y: 100  
         }
         this.velocity = { //snelheid van de speler
             x: 0,
-            y: 1   //hoe hoger dit getal, hoe sneller de speler naar beneden valt
+            y: 0
         }
-        this.width = 40 //breedte en hoogte van de speler
-        this.height = 40
+        this.width = 60 //breedte en hoogte van de speler
+        this.height = 60
+        this.onGround = false;
     }
 
     draw(){
-        c.fillStyle = 'red' //kleur van de speler
-        c.fillRect(this.position.x, this.position.y, this.width, this.height) //tekent een vierkant
+        // de capybara image
+        if (capybara.complete && capybara.naturalHeight !== 0) {
+            c.drawImage(capybara, this.position.x, this.position.y, this.width, this.height);
+        } else {
+            // Fallback drawing if image isn't loaded yet
+            c.fillStyle = 'purple'; 
+            c.fillRect(this.position.x, this.position.y, this.width, this.height);
+        }
     }
 
     update(){
         this.draw() //teken de speler
-        this.position.y += this.velocity.y //verander de y-positie van de speler met de snelheid
         this.position.x += this.velocity.x //verander de x-positie van de speler met de snelheid
-        
-        if (this.position.y + this.height + this.velocity.y <= canvas.height) //als het nog boven de canvas is valt de speler nog naar beneden
-        this.velocity.y += gravity //verander de snelheid van de speler met de zwaartekracht
-    else this.velocity.y = 0 //als de speler de onderkant van het canvas raakt stopt het met vallen
+        this.position.y += this.velocity.y //verander de y-positie van de speler met de snelheid
+
+        if (this.position.y + this.height + this.velocity.y < canvas.height) //als het nog boven de canvas is valt de speler nog naar beneden
+         {
+            if (!this.onGround) {
+                 this.velocity.y += gravity //verander de snelheid van de speler met de zwaartekracht
+            }
+        } else {
+            this.velocity.y = 0 //als de speler de onderkant van het canvas raakt stopt het met vallen
+            this.position.y = canvas.height - this.height;
+            this.onGround = true;
+        }
     }
 }
 
@@ -43,25 +130,7 @@ class Platform{
             x,
             y
         }
-        const widths = [ //random widths for the platforms en %kans dat ze voorkomen 
-            {width: 100, chance: 0.15},
-            {width: 150, chance: 0.15},
-            {width: 250, chance: 0.5},
-            {width: 350, chance: 0.10},
-        ];
-        const getRandomWidth = () => { //functie om een random width te krijgen
-            const random = Math.random(); //random getal tussen 0 en 1
-            let cumulativeChance = 0; //de kans dat de random width voorkomt
-
-            for (const option of widths){
-                cumulativeChance += option.chance; //de kans dat de random width voorkomt optelt
-                if (random < cumulativeChance){ 
-                    return option.width; //random width
-                }
-            }
-            return widths[widths.length - 1].width; //laatste optie
-        }
-        this.width = getRandomWidth() //random width van de platform
+        this.width = Math.random() < 0.5 ? 200 : 100; //random width, 50% kans op 200 en 50% kans op 100
         this.height = 20
     }
     draw(){
@@ -72,85 +141,252 @@ class Platform{
 
 const player = new Player() //maak een speler aan
 const platforms = [] //lege array voor random platforms
+let scrollOffset = 0;
+const playerMoveSpeed = 5;
+const jumpHeight = 23;
 
-// genereerd random platforms met verschillende breedtes en posities
+// --- Score Variables ---
+let score = 0;
+const pointsPerScrollTick = 0.01; // punten per scroll tick
+
 function generatePlatforms(num){
-    let safeSpaceWidth = 700; // Ruimte om te starten zonder platforms
-    let minGap = 150; // Minimale horizontale afstand tussen platforms
-    let minVerticalGap = 100; // Minimale verticale afstand (zodat je erop kunt springen)
-    let maxTries = 10; // Maximaal aantal pogingen om een platform te plaatsen zonder overlap
+    platforms.length = 0; // clear bestaande platforms voordat er nieuwe komen
+    let currentX = 500; // beginpositie voor het eerste platform
+    const minYGap = 150;
+    const maxYGap = 350;
+    const minHeight = canvas.height * 0.4;
+    const maxHeight = canvas.height - 50;
 
-    let placedPlatforms = []; // Array om de geplaatste platforms bij te houden
+    // Ensure there's at least one starting platform if num > 0
+    if (num > 0) {
+        platforms.push(new Platform({ x: currentX, y: canvas.height - 50}))
+    }
 
-    for (let i = 0; i < num; i++) {
-        let platformCount = Math.floor(Math.random() * 2) + 1; // Kies 1-2 platforms tegelijk
-        let baseX = safeSpaceWidth + i * 400 + Math.random() * 100; // Basis X-positie
-        let lastY = 0; // Houdt de vorige Y-positie bij om overlap te voorkomen
+    // Generate the rest
+    for (let i = 0; i < num -1; i++){ // Generate num-1 more platforms
+        const lastPlatform = platforms[platforms.length - 1];
+        // Ensure lastPlatform exists before accessing its properties
+        if (!lastPlatform) break;
+        currentX = lastPlatform.position.x + lastPlatform.width + minYGap + Math.random() * (maxYGap - minYGap);
+        let randomY = minHeight + Math.random() * (maxHeight - minHeight)
 
-        for (let j = 0; j < platformCount; j++) {
-            let offsetX = j * (Math.random() * 200 + minGap); // Zorgt dat platforms niet overlappen
-            let randomY;
-
-            do {
-                randomY = 200 + Math.random() * 450; // Random hoogte. 300 is de start hoogte
-            } while (Math.abs(randomY - lastY) < minVerticalGap); // Check dat platforms niet te dicht boven elkaar zitten
-
-            lastY = randomY; // Sla de laatst gekozen Y op voor de volgende check
-
-            platforms.push(new Platform({ x: baseX + offsetX, y: randomY }));
-        }
+        platforms.push(new Platform({ x: currentX, y: randomY })) //voeg een nieuwe platform toe aan de array
     }
 }
-generatePlatforms(30) //genereer een hoeveelheid platforms
+
+generatePlatforms(0); 
 
 const keys = {
     right: { pressed: false }, //toetsen voor de speler
     left: { pressed: false },
     up: { pressed: false },
-    down: { pressed: false }
+    down: { pressed: false } // 's' key functionality was removed from key listeners, this is unused
 }
-player.draw()
+
+let gameRunning = false;
+let imagesLoaded = 0;
+// Update totalImages to include player image as well
+const totalImages = layers.length + 1 + 1; // layers + capy family + player
+
+function startGameIfReady() {
+    imagesLoaded++;
+    console.log(`Images loaded: ${imagesLoaded}/${totalImages}`); // Debug log
+
+    if (imagesLoaded === totalImages && !gameRunning) {
+        console.log("All images ready, starting game!"); // Debug log
+        layers.forEach(layer => layer.calculateDrawWidth());
+
+        if (capyFamily.image.naturalHeight > 0) {
+            const aspectRatio = capyFamily.image.naturalWidth / capyFamily.image.naturalHeight;
+            capyFamily.drawWidth = capyFamily.drawHeight * aspectRatio;
+            capyFamily.y = canvas.height - capyFamily.drawHeight - 5;
+        } else {
+            console.warn("Could not calculate capy family dimensions."); // Warning log
+            capyFamily.drawWidth = 200; // Fallback width
+            capyFamily.y = canvas.height - capyFamily.drawHeight - 5;
+        }
+
+        // reset game
+        player.position.x = 200; //de ruimte tussen links en de speler
+        player.position.y = 100;
+        player.velocity.x = 0;
+        player.velocity.y = 0;
+        player.onGround = false;
+        scrollOffset = 0;
+        capyFamily.x = 10;
+        capyFamily.showText = true;
+
+        generatePlatforms(30); // Generate the actual platforms for the game
+
+        score = 0; // reset score
+        gameRunning = true;
+        animate();
+    } else if (totalImages === 0 && !gameRunning) {
+         // This case likely won't happen if player image is required
+         console.log("No images defined, starting immediately."); // Debug log
+         score = 0; // reset score
+         gameRunning = true;
+         animate();
+    }
+}
 
 function animate(){
+    if (!gameRunning) return;
+
     requestAnimationFrame(animate) //roept de functie opnieuw aan, waardoor er een animatie ontstaat
     c.clearRect(0, 0, canvas.width, canvas.height) //maakt het canvas leeg
-    player.update() //update de speler
+
+    let scrollSpeed = 0;
+    let scoredThisFrame = false; // dubbele scrolling voorkomen
+
+    // beweging van de capybara
+    if (keys.right.pressed && player.position.x < canvas.width * 0.4) {
+        player.velocity.x = playerMoveSpeed //verander de snelheid van de speler naar rechts
+    } else if (keys.left.pressed && player.position.x > canvas.width * 0.2) { //als de toets ingedrukt is en de speler is niet buiten het canvas
+        player.velocity.x = -playerMoveSpeed //verander de snelheid van de speler naar links
+    } else {
+        player.velocity.x = 0 //als de toets niet ingedrukt is, stopt de speler met bewegen
+
+        // Scrolling
+        if (keys.right.pressed) {
+            scrollSpeed = playerMoveSpeed;
+            if (!scoredThisFrame) {
+                 score += pointsPerScrollTick;
+                 scoredThisFrame = true;
+            }
+            platforms.forEach((platform) => {
+                platform.position.x -= scrollSpeed //als de speler naar rechts beweegt, beweegt de platform ook naar links
+            });
+            capyFamily.x -= scrollSpeed; // scroll familie image
+
+        } else if (keys.left.pressed && scrollOffset > 0) {
+            scrollSpeed = -playerMoveSpeed;
+             if (!scoredThisFrame) { // voeg de score alleen toe als er gescrold wordt
+                 score += pointsPerScrollTick;
+                 scoredThisFrame = true;
+             }
+            platforms.forEach((platform) => {
+                platform.position.x -= scrollSpeed //als de speler naar links beweegt, beweegt de platform ook naar rechts
+            });
+            capyFamily.x -= scrollSpeed; // scroll familie image
+        }
+    }
+
+    // parralax scrolling
+    layers.forEach(layer => {
+        layer.update(scrollSpeed);
+        layer.draw();
+    });
+
+    // teken capybara familie
+    if (capyFamily.image.complete && capyFamily.image.naturalHeight !== 0 && capyFamily.drawWidth > 0) {
+        c.drawImage(
+            capyFamily.image,
+            capyFamily.x,
+            capyFamily.y,
+            capyFamily.drawWidth,
+            capyFamily.drawHeight
+        );
+
+        if (scrollOffset > 300) { //haal de tekst weg na 300 pixels
+            capyFamily.showText = false;
+        }
+
+        if (capyFamily.showText && capyFamily.x + capyFamily.drawWidth > 0 && capyFamily.x < canvas.width) {
+             c.font = 'bold 20px Arial';
+             c.fillStyle = 'white'; // Color used here for text
+             c.textAlign = 'center';
+             c.fillText(capyFamily.text, capyFamily.x + capyFamily.drawWidth / 2, capyFamily.y - 15);
+        }
+    }
+
+
+    // platform logica
+    if (player.position.y + player.height < canvas.height) {
+        player.onGround = false;
+    }
+
     platforms.forEach(platform =>{
         platform.draw() //teken de platform
-    })
 
-    if (keys.right.pressed && player.position.x <400){
-        player.velocity.x = 5 //verander de snelheid van de speler naar rechts
-    } else if (keys.left.pressed && player.position.x > 100) { //als de toets ingedrukt is en de speler is niet buiten het canvas
-        player.velocity.x = -5 }//verander de snelheid van de speler naar links}
-       
-        else {
-            player.velocity.x = 0 //als de toets niet ingedrukt is, stopt de speler met bewegen
-        
-        if (keys.right.pressed){
-            platforms.forEach((platform) =>{
-                platform.position.x -= 5 //als de speler naar rechts beweegt, beweegt de platform ook naar links
-            })
-        
-        } else if (keys.left.pressed){
-            platforms.forEach((platform) =>{
-                platform.position.x += 5 //als de speler naar links beweegt, beweegt de platform ook naar rechts 
-            })
-        }
-        }
-
-        platforms.forEach((platform) =>{
         //platform collision detection
-        if (player.position.y + player.height <= platform.position.y && player.position.y 
-            + player.height + player.velocity.y >= platform.position.y && player.position.x
-            + player.width >= platform.position.x && player.position.x <= platform.position.x 
-            + platform.width) { 
-            player.velocity.y = 0 //als de speler boven de platform is, stopt de speler met vallen
+        if (
+            player.position.y + player.height <= platform.position.y &&
+            player.position.y + player.height + player.velocity.y >= platform.position.y &&
+            player.position.x + player.width > platform.position.x &&
+            player.position.x < platform.position.x + platform.width
+           )
+        {
+            if (player.velocity.y >= 0) {
+                 player.velocity.y = 0 //als de speler boven de platform is, stopt de speler met vallen
+                 player.position.y = platform.position.y - player.height;
+                 player.onGround = true;
+            }
         }
-    })
+    });
+
+
+    player.update() //update de speler
+
+    // scroll update
+    if(scrollSpeed !== 0 && player.velocity.x === 0) {
+         scrollOffset += scrollSpeed;
+    }
+
+    // score
+    c.font = '24px Arial';
+    c.fillStyle = 'white';
+    c.textAlign = 'center';
+    c.fillText(`Score: ${Math.floor(score)}`, canvas.width / 2, 40); // text in boven midden
+
+    // lose scenario
+    if (player.position.y > canvas.height + 200) {
+        console.log("Game Over! Final Score:", Math.floor(score));
+        gameRunning = false; // Stop de game loop
+
+    }
 }
 
-animate() //start de animatie
+// image loading
+if (totalImages === 0) {
+    startGameIfReady(); 
+} else {
+    // Loaad de parralax layers
+    layers.forEach(layer => {
+        layer.image.onload = startGameIfReady;
+        layer.image.onerror = () => {
+            console.error(`Failed to load layer: ${layer.image.src}`);
+            startGameIfReady(); 
+        }
+        // Check cache
+        if(layer.image.complete && layer.image.naturalHeight !== 0) {
+             setTimeout(startGameIfReady, 1);
+        }
+    });
+
+    // Laad capy familie
+    capyFamily.image.onload = startGameIfReady;
+    capyFamily.image.onerror = () => {
+        console.error(`Failed to load capy family image: ${capyFamily.image.src}`);
+        startGameIfReady(); // Increment counter even on error
+    }
+    // Check cache
+    if(capyFamily.image.complete && capyFamily.image.naturalHeight !== 0) {
+        setTimeout(startGameIfReady, 1);
+    }
+
+    // Laad player image
+    capybara.onload = startGameIfReady;
+    capybara.onerror = () => {
+        console.error(`Failed to load player image: ${capybara.src}`);
+        startGameIfReady(); // 
+    }
+     // Check cache
+     if(capybara.complete && capybara.naturalHeight !== 0) {
+        setTimeout(startGameIfReady, 1);
+    }
+}
+
 
 window.addEventListener('keydown', ({ key }) => { // Luistert naar de toetsenbord input
     switch (key.toLowerCase()) { // Zet hoofdletters om naar kleine letters voor consistentie
@@ -161,17 +397,15 @@ window.addEventListener('keydown', ({ key }) => { // Luistert naar de toetsenbor
 
         case 'd': // 'D' toets
             console.log('right')
-            keys.right.pressed = true; 
+            keys.right.pressed = true;
             break;
 
         case 'w': // 'W' toets
             console.log('up')
-            player.velocity.y -= 10; // Spring omhoog
-            break;
-            
-        case 's': // 'S' toets
-            console.log('down')
-            player.velocity.y += 10; // naar beneden
+            if (player.onGround) {
+                 player.velocity.y = -jumpHeight; // Spring omhoog
+                 player.onGround = false;
+            }
             break;
     }
 });
@@ -185,12 +419,18 @@ window.addEventListener('keyup', ({ key }) => { // Luistert naar de toetsenbord 
 
         case 'd': // 'D' toets
             console.log('right')
-            keys.right.pressed = false; 
+            keys.right.pressed = false;
             break;
+    }
+});
 
-        case 'w': // 'W' toets
-            console.log('up')
-            player.velocity.y -= 20; // Spring omhoog
-            break;
+window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    layers.forEach(layer => layer.calculateDrawWidth());
+    if (capyFamily.image.naturalHeight > 0) {
+        const aspectRatio = capyFamily.image.naturalWidth / capyFamily.image.naturalHeight;
+        capyFamily.drawWidth = capyFamily.drawHeight * aspectRatio;
+        capyFamily.y = canvas.height - capyFamily.drawHeight - 5;
     }
 });

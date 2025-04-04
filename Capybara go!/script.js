@@ -168,6 +168,11 @@ window.addEventListener('keydown', ({ key }) => { // Luistert naar de toetsenbor
             console.log('up')
             player.velocity.y -= 10; // Spring omhoog
             break;
+            
+        case 's': // 'S' toets
+            console.log('down')
+            player.velocity.y += 10; // naar beneden
+            break;
     }
 });
 

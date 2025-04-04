@@ -43,7 +43,25 @@ class Platform{
             x,
             y
         }
-        this.width = Math.random() < 0.5 ? 200 : 100; //random width, 50% kans op 200 en 50% kans op 75
+        const widths = [ //random widths for the platforms en %kans dat ze voorkomen 
+            {width: 100, chance: 0.15},
+            {width: 250, chance: 0.50},
+            {width: 150, chance: 0.25},
+            {width: 350, chance: 0.10},
+        ];
+        const getRandomWidth = () => { //functie om een random width te krijgen
+            const random = Math.random();
+            let cumulativeChance = 0; //de kans dat de random width voorkomt
+
+            for (const option of widths){
+                cumulativeChance += option.chance; //optie.kans
+                if (random < cumulativeChance){ 
+                    return option.width; //random width
+                }
+            }
+            return widths[widths.length - 1].width; //laatste optie
+        }
+        this.width = getRandomWidth() //random width van de platform
         this.height = 20
     }
     draw(){

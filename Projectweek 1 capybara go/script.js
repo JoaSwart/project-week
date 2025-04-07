@@ -6,110 +6,160 @@ canvas.height = window.innerHeight; //hoogte van het canvas
 
 const gravity = 1 //zwaartekracht
 
+const groundHeight = 70; // Hooe hoog de ondegrond is
 
-// -parralax
-// Klasse voor een achtergrondlaag
+// images
+
+const groundImage = new Image();
+groundImage.src = 'images/Ondergrond.png';
+
+
+const capyFamilyImage = new Image();
+capyFamilyImage.src = 'images/capyfamily.png';
+
+const capybara = new Image(); //capybara
+capybara.src = 'images/capybara-character.png';
+
+const platformScaleFactor = 0.5; //de groottes van de platform images
+
+// platform images
+// Load all platform images globally
+const platformImages = {
+    klein1: new Image(),
+    klein2: new Image(),
+    groot1: new Image(),
+    groot2: new Image(),
+    medium1: new Image(),
+    medium2: new Image(),
+    medium3: new Image(),
+};
+platformImages.klein1.src = 'images/Kleinplatform.png';
+platformImages.klein2.src = 'images/Kleinplatform2.png';
+platformImages.groot1.src = 'images/Grootplatform.png';
+platformImages.groot2.src = 'images/Grootplatform2.png';
+platformImages.medium1.src = 'images/Mediumplatform.png';
+platformImages.medium2.src = 'images/Mediumplatform2.png';
+platformImages.medium3.src = 'images/Mediumplatform3.png';
+
+// array voor de platform images voor random platforms
+const platformImageArray = Object.values(platformImages);
+
+
+
+// parralax
+
+
 class Layer {
-    // Wordt uitgevoerd bij het maken van een nieuwe laag
-    constructor(imageSrc, speedModifier) {
+
+    constructor(imageSrc, speedModifier, fixedHeight = null) {
         this.image = new Image(); // Maak een nieuw afbeeldingsobject
         this.image.src = imageSrc; // Stel het afbeeldingsbestand in
         this.speedModifier = speedModifier; // Snelheid waarmee de laag beweegt
         this.x = 0; // Start x-positie
         this.y = 0; // Start y-positie
-        this.drawWidth = 0; // Breedte om te tekenen (wordt later berekend)
+        this.drawWidth = 0; // Breedte om te tekenen
+        this.fixedHeight = fixedHeight;
+        this.drawHeight = 0;
+
+        this.image.onload = () => {
+             this.calculateDrawWidthAndHeight();
+        }
+        if (this.image.complete && this.image.naturalWidth > 0) {
+             this.calculateDrawWidthAndHeight();
+        }
     }
 
-    // Berekent hoe breed de afbeelding getekend moet worden
-    calculateDrawWidth() {
-        // Als de hoogte van de afbeelding bekend is
-        if (this.image.naturalHeight > 0) {
-            const aspectRatio = this.image.naturalWidth / this.image.naturalHeight; // Bereken verhouding
-            // Bereken breedte op basis van canvas hoogte en verhouding
-            this.drawWidth = canvas.height * aspectRatio;
+    // bereken de breedte en hoogte van de laag
+    calculateDrawWidthAndHeight() {
+        // gebruik fixed height als het kan, anders gebruik de canvas hoogte
+        this.drawHeight = this.fixedHeight !== null ? this.fixedHeight : canvas.height;
+
+        // zorgen dat de drawwidth hetzelfde is als de canvas breedte
+        if (canvas.width > 0 && this.image.naturalHeight > 0 && this.image.naturalWidth > 0) {
+            const aspectRatio = this.image.naturalWidth / this.image.naturalHeight;
+            // bereken de breedte op basis van de hoogte
+            let calculatedWidthBasedOnHeight = this.drawHeight * aspectRatio;
+
+            this.drawWidth = Math.max(calculatedWidthBasedOnHeight, canvas.width);
+            this.drawWidth += 1; // Add buffer
+
+        } else if (canvas.width > 0) {
+            this.drawWidth = canvas.width + 1; // Fallback
         } else {
-            // Anders, gebruik de volledige canvas breedte
-            this.drawWidth = canvas.width;
+            this.drawWidth = 0; // kan de breedte niet berekenen
+        }
+
+        // zorg dat de hoogte van de laag hetzelfde is als de canvas hoogte
+        if (this.fixedHeight === null) {
+            this.y = 0; // parralax lagen beginnen bovenaan
+        } else {
+
         }
     }
 
     // Werkt de positie van de laag bij
     update(scrollSpeed) {
-        // Bereken breedte als dat nog niet gedaan is
-        if (this.drawWidth === 0 && this.image.naturalWidth > 0) {
-            this.calculateDrawWidth();
+        // her bereken de breedte en hoogte als de afbeelding nog niet is geladen
+        if (this.drawWidth <= 1 && this.image.naturalWidth > 0) {
+            this.calculateDrawWidthAndHeight();
+            if (this.fixedHeight === null) this.y = 0;
         }
-        // Stop als de breedte ongeldig is
         if (this.drawWidth <= 0) return;
-
-        // Verplaats de laag op basis van scrollsnelheid en laag-snelheid
+        // beweeg alleen de x positie van de laag
         this.x -= scrollSpeed * this.speedModifier;
-
-        // Als de laag te ver naar links is geschoven
-        if (this.x <= -this.drawWidth) {
-            const times = Math.ceil(Math.abs(this.x) / this.drawWidth);
-            // Schuif terug naar rechts om te herhalen
-            this.x += this.drawWidth * times;
-        // Als de laag naar rechts is geschoven (bij terug scrollen)
-        } else if (this.x > 0 && scrollSpeed < 0) {
-             const times = Math.ceil(this.x / this.drawWidth);
-             // Schuif terug naar links om te herhalen
-             this.x -= this.drawWidth * times;
-        }
     }
 
-
+    // Tekent de laag met een goeie overgang
     draw() {
-        if (this.drawWidth <= 0) return;
-        c.drawImage(this.image, this.x, this.y, this.drawWidth, canvas.height);
-        c.drawImage(this.image, this.x + this.drawWidth, this.y, this.drawWidth, canvas.height);
-        c.drawImage(this.image, this.x - this.drawWidth, this.y, this.drawWidth, canvas.height);
+        if (this.drawWidth <= 0 || !this.image.complete || this.image.naturalHeight === 0) {
+            return;
+        }
+        let effectiveX = this.x % this.drawWidth;
+
+        // teken door gebruik te maken van de berekende breedte en hoogte
+        c.drawImage(this.image, effectiveX, this.y, this.drawWidth, this.drawHeight);
+        c.drawImage(this.image, effectiveX + this.drawWidth, this.y, this.drawWidth, this.drawHeight);
+        c.drawImage(this.image, effectiveX - this.drawWidth, this.y, this.drawWidth, this.drawHeight);
     }
 }
 
-// de parralax lagen
+// de parralax lagen (background)
 const layers = [
     new Layer('Background1/lucht.png', 0.1),
     new Layer('Background1/wolken.png', 0.3),
     new Layer('Background1/achtergrondgras.png', 0.6),
-    new Layer('Background1/voorgrondgras.png', 1.0)
+    new Layer('Background1/voorgrondgras.png', 0.8)
 ];
+
+// ondergrond laag
+const groundLayer = new Layer('images/Ondergrond.png', 1.0, groundHeight);
 
 
 // capybara familie
-const capyFamilyImage = new Image();
-capyFamilyImage.src = 'images/capyfamily.png';
-
-//capybara
-const capybara = new Image(); 
-capybara.src = 'images/capybara-character.png'; 
-
 const capyFamily = {
     image: capyFamilyImage,
     x: 10,
-    y: 0,
+    y: 0, // hetzelfde als de ondergrond
     drawWidth: 0,
     drawHeight: 90,
     text: "We're hungry!",
     showText: true,
-    
 };
-
 
 
 class Player {
     constructor(){
         this.position = { //positie van de speler
-            x: 100, 
-            y: 100  
+            x: 100,
+            y: 100
         }
         this.velocity = { //snelheid van de speler
             x: 0,
-            y: 0 
+            y: 0
         }
-        this.width = 60 //breedte en hoogte van de speler 
+        this.width = 60 //breedte en hoogte van de speler
         this.height = 60
-        this.onGround = false; 
+        this.onGround = false; // onground status
     }
 
     draw(){
@@ -117,129 +167,204 @@ class Player {
         if (capybara.complete && capybara.naturalHeight !== 0) {
             c.drawImage(capybara, this.position.x, this.position.y, this.width, this.height);
         } else {
-            
-            c.fillStyle = 'purple'; // Placeholder color
+
+            c.fillStyle = 'purple'; // Placeholder kleur als de image nog niet is geladen
             c.fillRect(this.position.x, this.position.y, this.width, this.height);
         }
     }
 
     update(){
-        this.draw() //teken de speler
-        this.position.x += this.velocity.x //verander de x-positie van de speler met de snelheid
-        this.position.y += this.velocity.y //verander de y-positie van de speler met de snelheid
+        this.draw(); //teken de speler
+        this.position.x += this.velocity.x; //verander de x-positie van de speler met de snelheid
 
-        if (this.position.y + this.height + this.velocity.y < canvas.height) //als het nog boven de canvas is valt de speler nog naar beneden
-         {
-            // gravity als capybara niet op de grond is
-            if (!this.onGround) {
-                 this.velocity.y += gravity //verander de snelheid van de speler met de zwaartekracht
+        this.position.y += this.velocity.y; //verander de y-positie van de speler met de snelheid
+
+        this.onGround = false;
+
+        // platform collision
+        platforms.forEach(platform => {
+            // een speler is alleen op een platform als:
+            if (
+                this.velocity.y >= 0 && // 1. de speler staat stil of beweegt naar beneden
+                this.position.y + this.height >= platform.position.y && // 2. onderkant is gelijk of lager dan de bovenkant van het platform
+                // 3. bekijk of de onderkant van de speler boven het platform was
+                (this.position.y + this.height - this.velocity.y) <= platform.position.y + 1 &&
+                // 4. horizontale overlap
+                this.position.x + this.width > platform.position.x &&
+                this.position.x < platform.position.x + platform.width
+               )
+            {
+                 this.velocity.y = 0; // Stop verticale movement
+                 this.position.y = platform.position.y - this.height; //
+                 this.onGround = true; // op een platform
             }
-        } else {
-            this.velocity.y = 0 //als de speler de onderkant van het canvas raakt stopt het met vallen
-            this.position.y = canvas.height - this.height; 
-            this.onGround = true; // op de grond
+        });
+
+
+
+        // ground collision check (ondergrond dus niet op platform)
+        const groundLevelY = canvas.height - groundHeight; // bereken de y positie van de ondergrond
+        if (!this.onGround && this.position.y + this.height >= groundLevelY) {
+             // als de speler op de ondergrond is
+             this.velocity.y = 0; // stop met vallen
+             this.position.y = groundLevelY - this.height;
+             this.onGround = true;
         }
+
+        // voeg zwaartekracht toe als de speler in de lucht is
+        // gravity als capybara niet op de grond is
+        if (!this.onGround) {
+            this.velocity.y += gravity; //verander de snelheid van de speler met de zwaartekracht
+        }
+
     }
 }
 
 // class voor de platforms
 class Platform{
-    constructor({x, y}){
+    // constructor gebruikt images ipv random breedte en hoogte
+    constructor({x, y, image}){ 
         this.position = {
             x,
             y
         }
-       
-        const widths = [ // random widths for the platforms
-            {width: 100, chance: 0.15},
-            {width: 150, chance: 0.25}, 
-            {width: 250, chance: 0.5},
-            {width: 350, chance: 0.10},
-        ];
-        const getRandomWidth = () => { //functie om een random width te krijgen
-            const random = Math.random(); //random getal tussen 0 en 1
-            let cumulativeChance = 0; // de kans dat de random width voorkomt
+        this.image = image; 
 
-            for (const option of widths){
-                cumulativeChance += option.chance; // de kans dat de random width voorkomt optelt
-                if (random < cumulativeChance){
-                    return option.width; //random width
-                }
-            }
-            return widths[widths.length - 1].width; // laatste optie
+        // width en height worden bepaald door de afbeelding
+        // checks of de afbeelding is geladen
+        if (this.image && this.image.naturalWidth > 0) {
+             this.width = this.image.naturalWidth * platformScaleFactor;
+             this.height = this.image.naturalHeight * platformScaleFactor;
+        } else {
+            // fallback groottes als de images niet geladen zijn
+            console.warn(`Platform image not ready or invalid for Platform at ${x},${y}. Using fallback size.`);
+            this.width = 100; // Example fallback
+            this.height = 20;  // Example fallback
         }
-        this.width = getRandomWidth() // random width van de platform
-        this.height = 20
-    }
+
+    } 
+
     draw(){
-        c.fillStyle = 'blue' //kleur van de platform
-        c.fillRect(this.position.x, this.position.y, this.width, this.height) //teken de platform
+        // teken de image als het goed is geladen 
+        if (this.image && this.image.complete && this.width > 0) {
+             c.drawImage(this.image, this.position.x, this.position.y, this.width, this.height); //teken de platform (image)
+        } else {
+            c.fillStyle = 'grey'; //kleur van de platform (fallback)
+            c.fillRect(this.position.x, this.position.y, this.width || 100, this.height || 20); //teken de platform (fallback)
+        }
     }
 }
+// --------------------------------------------
 
 const player = new Player() //maak een speler aan
 const platforms = [] //lege array voor random platforms
 let scrollOffset = 0;
-const playerMoveSpeed = 5; 
-const jumpHeight = 23; 
+const playerMoveSpeed = 5;
+const jumpHeight = 23;
 
 // score variabelen
-let score = 0; 
-const pointsPerScrollTick = 0.01; // punten per scroll tick 
+let score = 0;
+const pointsPerScrollTick = 0.01; // punten per scroll tick
 
 // platform logica
+// modified voor platform images
 function generatePlatforms(num){
     platforms.length = 0; // verwijder bestaande platforms
-    const heights = [200, 325, 450, 525, 600]; // 4 vaste hoogtes voor de platforms (laag, middel, hoog)
+    const groundLevelY = canvas.height - groundHeight;
+    // Hoogtes voor de platforms (relatief aan de grond)
+    const heights = [ // 4 vaste hoogtes voor de platforms (laag, middel, hoog)
+        groundLevelY - 150, // Higher
+        groundLevelY - 275, // Mid-high
+        groundLevelY - 400, // Mid-low
+        groundLevelY - 500
+    ].filter(h => h > 50); // filter heights die te hoog zijn
     let safeSpaceWidth = 700; // ruimte voordat je moet beginnen
     let minGap = 150; // afstand tussen de platforms
 
+    let lastPlatformEndX = safeSpaceWidth; // kijk waar het laatste platform eindigt
+
+    if (platformImageArray.length === 0) {
+        console.error("Platform image array is empty! Cannot generate platforms.");
+        return;
+    }
 
     for (let i = 0; i < num; i++) {
-        let platformCount = Math.floor(Math.random() * 3) + 1; // Kies 1-3 platforms tegelijk
-        let baseX = safeSpaceWidth + i * 400 + Math.random() * 100; // Basis X-positie
+        let platformCount = Math.floor(Math.random() * 5) + 2; // Kies 2-5 platforms tegelijk
+        let currentClusterX = lastPlatformEndX + minGap + Math.random() * 150; // voeg ruimte tussen de platforms toe
 
         // de platforms worden op een random hoogte geplaatst
         for (let j = 0; j < platformCount; j++) {
-            let randomHeight = heights[Math.floor(Math.random() * heights.length)]; // kiest een random hoogte uit de 4 beschikbare hoogtes
-            let randomX = baseX + j * (Math.random() * 200 + minGap); // random X-positie
+            // een random image uit de platformImageArray kiezen
+            const randomImageIndex = Math.floor(Math.random() * platformImageArray.length);
+            const selectedImage = platformImageArray[randomImageIndex];
 
-            platforms.push(new Platform({ x: randomX, y: randomHeight })); // voeg de nieuwe platform toe aan de lijst
+            let platformHeight = heights[Math.floor(Math.random() * heights.length)]; // kiest een random hoogte uit de beschikbare hoogtes
+            let platformX = currentClusterX;
+
+            // Create platform met de image 
+            const newPlatform = new Platform({
+                x: platformX,
+                y: platformHeight,
+                image: selectedImage 
+            });
+            platforms.push(newPlatform); // voeg de nieuwe platform toe aan de lijst
+
+            // Update waar de volgende platform moet komen
+            currentClusterX = platformX + newPlatform.width + minGap / 2 + Math.random() * 50;
         }
+         lastPlatformEndX = currentClusterX;
     }
 }
 
-generatePlatforms(0); 
+
+
+generatePlatforms(0); // geen platforms totdat het spel start
 
 const keys = {
     right: { pressed: false }, //toetsen voor de speler
     left: { pressed: false },
-    up: { pressed: false }, 
-    down: { pressed: false } 
+    up: { pressed: false },
+    down: { pressed: false }
 }
 
-let gameRunning = false; 
-let imagesLoaded = 0; 
-const totalImages = layers.length + 1 + 1; // layers + capy family + player 
+let gameRunning = false;
+let imagesLoaded = 0;
+
+// update de totale images die moeten worden geladen
+const totalImages = layers.length // Background layers (incl. voorgrond)
+                  + 1 // ondergrond
+                  + Object.keys(platformImages).length // platform images
+                  + 1 // Capy familie
+                  + 1; // player capybara
+// -----------------------------
 
 function startGameIfReady() {
     imagesLoaded++;
     console.log(`Images loaded: ${imagesLoaded}/${totalImages}`); // Debug log
 
-    if (imagesLoaded === totalImages && !gameRunning) {
-        layers.forEach(layer => layer.calculateDrawWidth());
+    // gebruik >= om te zorgen dat de game start als alle afbeeldingen zijn geladen
+    if (imagesLoaded >= totalImages && !gameRunning) {
+        console.log("All images loaded or accounted for. Starting game...");
 
+        // bereken de breedte en hoogte van de lagen
+        layers.forEach(layer => layer.calculateDrawWidthAndHeight());
+
+        // bereken alleen de grondlaag
+        groundLayer.calculateDrawWidthAndHeight();
+        groundLayer.y = canvas.height - groundHeight; // ondergrond laag onderaan het canvas
+
+        // Capy Family
         if (capyFamily.image.naturalHeight > 0) {
             const aspectRatio = capyFamily.image.naturalWidth / capyFamily.image.naturalHeight;
             capyFamily.drawWidth = capyFamily.drawHeight * aspectRatio;
-            capyFamily.y = canvas.height - capyFamily.drawHeight - 5;
+             // pas y aan op basis van de grond
+            capyFamily.y = canvas.height - groundHeight - capyFamily.drawHeight - 5;
         } else {
-           
-            capyFamily.drawWidth = 200; 
-            capyFamily.y = canvas.height - capyFamily.drawHeight - 5;
+            capyFamily.drawWidth = 200; //width als de afbeelding nog niet is geladen
+            capyFamily.y = canvas.height - groundHeight - capyFamily.drawHeight - 5;
         }
 
-        // reset game
+        // Reset game
         player.position.x = 200; //de ruimte tussen links en de speler
         player.position.y = 100;
         player.velocity.x = 0;
@@ -249,67 +374,62 @@ function startGameIfReady() {
         capyFamily.x = 10;
         capyFamily.showText = true;
 
-        generatePlatforms(30); 
+        generatePlatforms(30); // Generate platforms in het begin
 
         score = 0; // reset score
         gameRunning = true;
-        animate();
-    } else if (totalImages === 0 && !gameRunning) {
-         score = 0; // reset score
-         gameRunning = true;
-         animate();
+        animate(); // Start the animation loop
     }
+
+    else if (totalImages === 0 && !gameRunning) { gameRunning = true; animate(); }
 }
 
 function animate(){
     if (!gameRunning) return;
 
-    requestAnimationFrame(animate) //roept de functie opnieuw aan, waardoor er een animatie ontstaat
-    c.clearRect(0, 0, canvas.width, canvas.height) //maakt het canvas leeg
+    requestAnimationFrame(animate); //roept de functie opnieuw aan, waardoor er een animatie ontstaat
+    c.clearRect(0, 0, canvas.width, canvas.height); //maakt het canvas leeg
 
     let scrollSpeed = 0;
     let scoredThisFrame = false; // dubbele scrolling voorkomen
 
-    // beweging van de capybara (using scroll limits from file 2)
+    // beweging van de capybara & Scrolling logic
     if (keys.right.pressed && player.position.x < canvas.width * 0.4) {
-        player.velocity.x = playerMoveSpeed //verander de snelheid van de speler naar rechts
-    } else if (keys.left.pressed && player.position.x > canvas.width * 0.2) { //als de toets ingedrukt is en de speler is niet buiten het canvas (using 0.2 from file 2)
-        player.velocity.x = -playerMoveSpeed //verander de snelheid van de speler naar links
+        player.velocity.x = playerMoveSpeed; //verander de snelheid van de speler naar rechts
+    } else if (keys.left.pressed && player.position.x > canvas.width * 0.2) { //als de toets ingedrukt is en de speler is niet buiten het canvas
+        player.velocity.x = -playerMoveSpeed; //verander de snelheid van de speler naar links
     } else {
-        player.velocity.x = 0 //als de toets niet ingedrukt is, stopt de speler met bewegen
+        player.velocity.x = 0; //als de toets niet ingedrukt is, stopt de speler met bewegen
 
-        // Scrolling 
+        // Scrolling begint als de speler meer dan 40% van het canvas is
         if (keys.right.pressed) {
             scrollSpeed = playerMoveSpeed;
-            if (!scoredThisFrame) {
-                 score += pointsPerScrollTick;
-                 scoredThisFrame = true;
-            }
-            platforms.forEach((platform) => {
-                platform.position.x -= scrollSpeed //als de speler naar rechts beweegt, beweegt de platform ook naar links
-            });
+            if (!scoredThisFrame) { score += pointsPerScrollTick; scoredThisFrame = true; }
+            platforms.forEach((platform) => { platform.position.x -= scrollSpeed; }); //als de speler naar rechts beweegt, beweegt de platform ook naar links
             capyFamily.x -= scrollSpeed; // scroll familie image
 
         } else if (keys.left.pressed && scrollOffset > 0) {
             scrollSpeed = -playerMoveSpeed;
-             if (!scoredThisFrame) { // voeg de score alleen toe als er gescrold wordt
-                 score += pointsPerScrollTick;
-                 scoredThisFrame = true;
-             }
-            platforms.forEach((platform) => {
-                platform.position.x -= scrollSpeed //als de speler naar links beweegt, beweegt de platform ook naar rechts
-            });
-            capyFamily.x -= scrollSpeed; // scroll familie image
+             if (!scoredThisFrame) { score += pointsPerScrollTick; scoredThisFrame = true; }
+            platforms.forEach((platform) => { platform.position.x -= scrollSpeed; }); //als de speler naar links beweegt, beweegt de platform ook naar rechts
+             capyFamily.x -= scrollSpeed; // scroll familie image
         }
     }
 
-    // parralax scrolling
+
+    // de volgorde van hoe alles wordt geladen
+
+    // 1. laadt alle parralax lagen in
     layers.forEach(layer => {
         layer.update(scrollSpeed);
         layer.draw();
     });
 
-    // teken capybara familie
+    // 2. ondergrond (wordt over de parralax lagen heen getekend)
+    groundLayer.update(scrollSpeed);
+    groundLayer.draw();
+
+    // 3. capy familie
     if (capyFamily.image.complete && capyFamily.image.naturalHeight !== 0 && capyFamily.drawWidth > 0) {
         c.drawImage(
             capyFamily.image,
@@ -319,10 +439,7 @@ function animate(){
             capyFamily.drawHeight
         );
 
-        if (scrollOffset > 300) { //haal de tekst weg na 300 pixels
-            capyFamily.showText = false;
-        }
-
+        if (scrollOffset > 300) { capyFamily.showText = false; } //haal de tekst weg na 300 pixels
         if (capyFamily.showText && capyFamily.x + capyFamily.drawWidth > 0 && capyFamily.x < canvas.width) {
              c.font = 'bold 20px Arial';
              c.fillStyle = 'white'; // Color used here for text
@@ -332,147 +449,143 @@ function animate(){
     }
 
 
-    // platform logica
-    if (player.position.y + player.height < canvas.height) {
-        player.onGround = false; 
-    }
-
+    // 4. teken platforms (Now drawn with images)
     platforms.forEach(platform =>{
-        platform.draw() //teken de platform
-
-        //platform collision detection (using file 2's format which includes setting onGround)
-        if (
-            player.position.y + player.height <= platform.position.y &&
-            player.position.y + player.height + player.velocity.y >= platform.position.y &&
-            player.position.x + player.width > platform.position.x &&
-            player.position.x < platform.position.x + platform.width
-           )
-        {
-            // Check of die op het platform staat
-            if (player.velocity.y >= 0) {
-                 player.velocity.y = 0 //als de speler boven de platform is, stopt de speler met vallen
-                 player.position.y = platform.position.y - player.height; // Adjust position precisely
-                 player.onGround = true; // Set grounded status
-            }
-        }
+        platform.draw(); // Draw method now uses drawImage
     });
 
-
-    player.update() //update de speler
+    // 5. update capybara
+    player.update(); //update de speler
 
     // scroll update
     if(scrollSpeed !== 0 && player.velocity.x === 0) {
          scrollOffset += scrollSpeed;
     }
 
-    // score
+    // Draw Score
     c.font = '24px Arial';
     c.fillStyle = 'white';
     c.textAlign = 'center';
     c.fillText(`Score: ${Math.floor(score)}`, canvas.width / 2, 40); // text in boven midden
 
-    // lose scenario
-    if (player.position.y > canvas.height + 200) {
-        console.log("Game Over! Final Score:", Math.floor(score));
+    // lose condition
+    const groundLevelY = canvas.height - groundHeight;
+    if (player.position.y > groundLevelY + 200) { // speler is onder de ondergrond
+        console.log("Game Over! Player fell too low. Final Score:", Math.floor(score));
         gameRunning = false; // Stop de game loop
+    }
 
+}
+
+// image loading
+
+function setupImageLoadListener(imageObject, name) {
+
+    if (!imageObject) {
+        console.error(`setupImageLoadListener called with invalid imageObject for name: "${name}". Skipping setup.`);
+        // start alsnog met het spel als deze afbeelding niet bestaat
+         console.warn(`Attempting to continue game start despite missing image object for "${name}"`);
+         startGameIfReady();
+        return; // stop met de setup
+    }
+
+
+    imageObject.onload = () => {
+        console.log(`${name} image loaded.`);
+        startGameIfReady();
+    };
+    imageObject.onerror = () => {
+        console.error(`Failed to load ${name} image: ${imageObject.src}`);
+        // alsnog beginnen met het spel ookals de afbeelding niet is geladen
+        startGameIfReady();
+    };
+
+    if (imageObject.complete && imageObject.naturalHeight !== 0) {
+        console.log(`${name} image already complete (cached).`);
+        // gebruik setTimeout om te zorgen dat de game pas begint als de afbeelding is geladen
+        setTimeout(startGameIfReady, 1);
     }
 }
 
-// image loading 
 if (totalImages === 0) {
     startGameIfReady();
 } else {
-    // Laadt de parralax layers
-    layers.forEach(layer => {
-        layer.image.onload = startGameIfReady;
-        layer.image.onerror = () => {
-            console.error(`Failed to load layer: ${layer.image.src}`);
-            startGameIfReady();
-        }
-        // check cache
-        if(layer.image.complete && layer.image.naturalHeight !== 0) {
-             setTimeout(startGameIfReady, 1);
-        }
+    console.log(`Setting up load listeners for ${totalImages} images...`);
+    // Laadt alle layers in de layers array
+    layers.forEach((layer, index) => {
+
+        let layerName = `Layer ${index} (${layer.image.src.split('/').pop()})`;
+        setupImageLoadListener(layer.image, layerName);
     });
 
-    // laad capy familie
-    capyFamily.image.onload = startGameIfReady;
-    capyFamily.image.onerror = () => {
-        console.error(`Failed to load capy family image: ${capyFamily.image.src}`);
-        startGameIfReady(); 
-    }
-    // check cache
-    if(capyFamily.image.complete && capyFamily.image.naturalHeight !== 0) {
-        setTimeout(startGameIfReady, 1);
+    // ondergrond laag
+    setupImageLoadListener(groundLayer.image, "Ground (Ondergrond.png)");
+
+    // platform images
+    for (const key in platformImages) {
+        setupImageLoadListener(platformImages[key], `Platform (${key})`);
     }
 
-    // laad capybara image
-    capybara.onload = startGameIfReady;
-    capybara.onerror = () => {
-        console.error(`Failed to load player image: ${capybara.src}`);
-        startGameIfReady(); 
-    }
-     // Check cache
-     if(capybara.complete && capybara.naturalHeight !== 0) {
-        setTimeout(startGameIfReady, 1);
-    }
+    // andere images
+    setupImageLoadListener(capyFamily.image, "Capy Family");
+    setupImageLoadListener(capybara, "Player");
 }
 
 
 
+// event listeners
 window.addEventListener('keydown', ({ key }) => { // Luistert naar de toetsenbord input
     switch (key.toLowerCase()) { // Zet hoofdletters om naar kleine letters voor consistentie
         case 'a': // 'A' toets
-            console.log('left')
             keys.left.pressed = true; // Zet de toets op 'ingedrukt'
             break;
 
         case 'd': // 'D' toets
-            console.log('right')
             keys.right.pressed = true;
             break;
 
         case 'w': // 'W' toets
-        case ' ': // Spatiebalk als alternatief voor 'W' 
-            console.log('up')
-            if (player.onGround) {
+        case ' ': // Spatiebalk als alternatief voor 'W'
+            if (player.onGround) { // spring alleen als de speler op de grond is of op een platform
                  player.velocity.y = -jumpHeight; // Spring omhoog
-                 player.onGround = false;
             }
             break;
 
-        case 's': // 'S' toets 
-            console.log('down')
-            player.velocity.y += 10; // naar beneden
-            break;
     }
 });
 
 window.addEventListener('keyup', ({ key }) => { // Luistert naar de toetsenbord input
     switch (key.toLowerCase()) { // Zet hoofdletters om naar kleine letters voor consistentie
         case 'a': // 'A' toets
-            console.log('left')
             keys.left.pressed = false; // Zet de toets op 'niet ingedrukt'
             break;
 
         case 'd': // 'D' toets
-            console.log('right')
             keys.right.pressed = false;
             break;
-
-        // No action needed on keyup for 'w', 's', or space for this implementation
     }
 });
 
-
 window.addEventListener('resize', () => {
+    console.log("Window resized");
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-    layers.forEach(layer => layer.calculateDrawWidth());
+
+    // bereken de breedte en hoogte van de lagen opnieuw
+    layers.forEach(layer => layer.calculateDrawWidthAndHeight());
+
+    // bereken de ondergrond laag opnieuw
+    groundLayer.calculateDrawWidthAndHeight();
+    groundLayer.y = canvas.height - groundHeight;
+
+
+    // bereken capy familie opnieuw
     if (capyFamily.image.naturalHeight > 0) {
         const aspectRatio = capyFamily.image.naturalWidth / capyFamily.image.naturalHeight;
         capyFamily.drawWidth = capyFamily.drawHeight * aspectRatio;
-        capyFamily.y = canvas.height - capyFamily.drawHeight - 5;
+        capyFamily.y = canvas.height - groundHeight - capyFamily.drawHeight - 5;
+    } else { // als de image nog niet goed geladen is
+        capyFamily.drawWidth = 200;
+        capyFamily.y = canvas.height - groundHeight - capyFamily.drawHeight - 5;
     }
 });

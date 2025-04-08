@@ -8,6 +8,15 @@ const gravity = 1 //zwaartekracht
 
 const groundHeight = 70; // Hooe hoog de ondegrond is
 
+const platformScaleFactor = 0.5; //de groottes van de platform images
+
+// speed increase
+const basePlayerMoveSpeed = 5;    // begin speed
+const maxPlayerMoveSpeed = 12;   // de maximum speed 
+const scoreForMaxSpeed = 2000; // score waar de max speed is 
+let currentPlayerMoveSpeed = basePlayerMoveSpeed; 
+
+
 // images
 
 const groundImage = new Image();
@@ -17,40 +26,55 @@ groundImage.src = 'images/Ondergrond.png';
 const capyFamilyImage = new Image();
 capyFamilyImage.src = 'images/capyfamily.png';
 
-const capybara = new Image(); //capybara
-capybara.src = 'images/capybara-character.png';
+// player animatie
+const capybaraIdle = new Image(); //capybara idle (laadt ook apart voor de idle animatie)
+capybaraIdle.src = 'images/capybara-character.png';
 
-const platformScaleFactor = 0.5; //de groottes van de platform images
+// walking frames
+const capybaraWalk = [
+    capybaraIdle, //idle image is de eerste frame van de animate
+    new Image(),
+    new Image(),
+    new Image(),
+];
+capybaraWalk[1].src = 'images/capywalk2.png';
+capybaraWalk[2].src = 'images/capywalk3.png';
+capybaraWalk[3].src = 'images/capywalk4.png';
+
 
 // platform images
-// Load all platform images globally
 const platformImages = {
     klein1: new Image(),
-    klein2: new Image(),
     groot1: new Image(),
     groot2: new Image(),
     medium1: new Image(),
-    medium2: new Image(),
     medium3: new Image(),
 };
 platformImages.klein1.src = 'images/Kleinplatform.png';
-platformImages.klein2.src = 'images/Kleinplatform2.png';
 platformImages.groot1.src = 'images/Grootplatform.png';
 platformImages.groot2.src = 'images/Grootplatform2.png';
 platformImages.medium1.src = 'images/Mediumplatform.png';
-platformImages.medium2.src = 'images/Mediumplatform2.png';
 platformImages.medium3.src = 'images/Mediumplatform3.png';
 
 // array voor de platform images voor random platforms
 const platformImageArray = Object.values(platformImages);
 
+// water animatie
+const waterFrames = [
+    new Image(),
+    new Image(),
+    new Image(),
+];
+waterFrames[0].src = 'images/water1.png';
+waterFrames[1].src = 'images/water2.png';
+waterFrames[2].src = 'images/water3.png';
 
+let currentWaterFrameIndex = 0;
+let waterAnimationTimer = 0;
+const waterAnimationSpeed = 10; // hoe hoger het getal hoe langzamer de animatie
 
 // parralax
-
-
 class Layer {
-
     constructor(imageSrc, speedModifier, fixedHeight = null) {
         this.image = new Image(); // Maak een nieuw afbeeldingsobject
         this.image.src = imageSrc; // Stel het afbeeldingsbestand in
@@ -69,7 +93,7 @@ class Layer {
         }
     }
 
-    // bereken de breedte en hoogte van de laag
+    
     calculateDrawWidthAndHeight() {
         // gebruik fixed height als het kan, anders gebruik de canvas hoogte
         this.drawHeight = this.fixedHeight !== null ? this.fixedHeight : canvas.height;
@@ -93,11 +117,11 @@ class Layer {
         if (this.fixedHeight === null) {
             this.y = 0; // parralax lagen beginnen bovenaan
         } else {
-
+            
         }
     }
 
-    // Werkt de positie van de laag bij
+   
     update(scrollSpeed) {
         // her bereken de breedte en hoogte als de afbeelding nog niet is geladen
         if (this.drawWidth <= 1 && this.image.naturalWidth > 0) {
@@ -109,7 +133,7 @@ class Layer {
         this.x -= scrollSpeed * this.speedModifier;
     }
 
-    // Tekent de laag met een goeie overgang
+    
     draw() {
         if (this.drawWidth <= 0 || !this.image.complete || this.image.naturalHeight === 0) {
             return;
@@ -157,29 +181,80 @@ class Player {
             x: 0,
             y: 0
         }
-        this.width = 60 //breedte en hoogte van de speler
+        this.width = 60 //breedte en hoogte van de speler (Used for collision AND drawing dimensions)
         this.height = 60
         this.onGround = false; // onground status
+
+        // capybara animatie frames
+        this.frames = {
+            idle: capybaraIdle, // de idle image
+            walk: capybaraWalk, // idle frame+ walk frames
+        };
+        this.currentFrame = this.frames.idle; // begin met de idle image
+        this.walkFrameIndex = 0; // index voor de walk frames
+        this.animationTimer = 0; // timer voor de animatie
+        this.animationSpeed = 6; // lager nummer= snellere animatie
+
+        this.scaleX = 1; // 1 voor rechts, -1 voor links
     }
 
     draw(){
-        //capybara image
-        if (capybara.complete && capybara.naturalHeight !== 0) {
-            c.drawImage(capybara, this.position.x, this.position.y, this.width, this.height);
-        } else {
+        c.save(); // save de huidige canvas staat
+        c.translate(this.position.x + this.width / 2, this.position.y + this.height / 2);
+        c.scale(this.scaleX, 1);
 
-            c.fillStyle = 'purple'; // Placeholder kleur als de image nog niet is geladen
-            c.fillRect(this.position.x, this.position.y, this.width, this.height);
+        let frameToDraw = this.currentFrame;
+        if (frameToDraw && frameToDraw.complete && frameToDraw.naturalHeight !== 0) {
+            c.drawImage(frameToDraw, -this.width / 2, -this.height / 2, this.width, this.height);
+        } else {
+            // Fallback drawing
+            if (this.frames.idle && this.frames.idle.complete && this.frames.idle.naturalHeight !== 0) {
+                c.drawImage(this.frames.idle, -this.width / 2, -this.height / 2, this.width, this.height);
+            } else {
+                c.fillStyle = 'purple';
+                c.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
+            }
         }
+        c.restore();
     }
 
     update(){
+        // update de positie van de speler
+        if (keys.left.pressed) {
+            this.scaleX = -1; // naar links
+        } else if (keys.right.pressed) {
+            this.scaleX = 1;  // naar rechts
+        }
+
+        // animatie logica
+        this.animationTimer++;
+        let isTryingToWalk = (keys.left.pressed || keys.right.pressed) && this.onGround;
+
+        if (isTryingToWalk) { // walking
+            if (this.animationTimer >= this.animationSpeed) {
+                this.animationTimer = 0;
+                this.walkFrameIndex++;
+                // gebruikt de frames van de walk animatie
+                if (this.walkFrameIndex >= this.frames.walk.length) {
+                    this.walkFrameIndex = 0;
+                }
+            }
+
+            this.currentFrame = this.frames.walk[this.walkFrameIndex];
+
+        } else { // idle of jumping/falling state
+            this.currentFrame = this.frames.idle; // gebruik de idle image
+            this.walkFrameIndex = 0; // reset de walk frame index
+            this.animationTimer = 0; // reset de animatie timer
+        }
+
+
+
         this.draw(); //teken de speler
         this.position.x += this.velocity.x; //verander de x-positie van de speler met de snelheid
-
         this.position.y += this.velocity.y; //verander de y-positie van de speler met de snelheid
 
-        this.onGround = false;
+        this.onGround = false; // ga er vanuit dat de speler niet op de grond is
 
         // platform collision
         platforms.forEach(platform => {
@@ -220,6 +295,8 @@ class Player {
     }
 }
 
+
+// class voor de platforms
 // class voor de platforms
 class Platform{
     // constructor gebruikt images ipv random breedte en hoogte
@@ -242,6 +319,18 @@ class Platform{
             this.height = 20;  // Example fallback
         }
 
+        const redApple = new Image();
+        redApple.src = 'images/red-apple.png';
+        this.itemSize = 40;
+        this.item = { // appel object, fading-out en opacity erbij geplaatst
+            x: this.position.x + this.width / 2 - this.itemSize / 2, // x position van de items
+            y: this.position.y - this.itemSize, // y position van de items
+            width: this.itemSize,
+            height: this.itemSize,
+            image: redApple, // appel foto
+            opacity: 1, // transparantie van de appel, word 0 als het aangeraakt is
+            fadingOut: false // of de appel aan het vervagen is
+        } 
     } 
 
     draw(){
@@ -252,73 +341,161 @@ class Platform{
             c.fillStyle = 'grey'; //kleur van de platform (fallback)
             c.fillRect(this.position.x, this.position.y, this.width || 100, this.height || 20); //teken de platform (fallback)
         }
+
+        // teken de appel als het goed is geladen
+        if (
+            this.item &&
+            !this.item.collected &&
+            this.image && this.image.complete && this.width > 0
+        ) {
+            // als de afbeelding is geladen, teken de appel
+            this.item.x = this.position.x + this.width / 2 - this.itemSize / 2; // x position van de appel
+            this.item.y = this.position.y - this.itemSize; // y position van de appel
+        
+            c.save();
+            c.globalAlpha = this.item.opacity ?? 1;
+        
+            if (this.item.image.complete) {
+                c.drawImage(this.item.image, this.item.x, this.item.y, this.item.width, this.item.height);
+            } else {
+                c.fillStyle = 'red';
+                c.fillRect(this.item.x, this.item.y, this.item.width, this.item.height);
+            }
+        
+            c.restore();
+        }
+    }
+    // checkCollision met de speler
+    checkCollision(player) {
+        const item = this.item;
+
+        return ( // als de speler de appel raakt
+            player.position.x < item.x + item.width && 
+            player.position.x + player.width > item.x &&
+            player.position.y < item.y + item.height &&
+            player.position.y + player.height > item.y
+        ); 
     }
 }
-// --------------------------------------------
+
 
 const player = new Player() //maak een speler aan
 const platforms = [] //lege array voor random platforms
+// water / death pits 
+const deathPits = []; // array om de death pits op te slaan
+// ---------------------------------
 let scrollOffset = 0;
-const playerMoveSpeed = 5;
-const jumpHeight = 23;
+const jumpHeight = 23; 
 
 // score variabelen
 let score = 0;
-const pointsPerScrollTick = 0.01; // punten per scroll tick
+
+// HEALTH //
+let health = 3; // begin met 3 levens
+let healthDisplay = "❤️❤️❤️"; // begin met 3 levens
+
+function getHealthDisplay() {
+    return healthDisplay
+}
+
+function displayHealth() {
+    c.font = '24px Arial';
+    c.fillStyle = 'white';
+    c.textAlign = 'left';
+    c.fillText(`Health: ${getHealthDisplay()}`, 20, 40); // text in boven links
+}
 
 // platform logica
-// modified voor platform images
-function generatePlatforms(num){
-    platforms.length = 0; // verwijder bestaande platforms
-    const groundLevelY = canvas.height - groundHeight;
-    // Hoogtes voor de platforms (relatief aan de grond)
-    const heights = [ // 4 vaste hoogtes voor de platforms (laag, middel, hoog)
-        groundLevelY - 150, // Higher
-        groundLevelY - 275, // Mid-high
-        groundLevelY - 400, // Mid-low
-        groundLevelY - 500
-    ].filter(h => h > 50); // filter heights die te hoog zijn
-    let safeSpaceWidth = 700; // ruimte voordat je moet beginnen
-    let minGap = 150; // afstand tussen de platforms
+function generatePlatforms(num) {
+    platforms.length = 0; // Clear existing platforms
+    const groundLevelY = canvas.height - groundHeight; // Calculate the Y position of the ground
 
-    let lastPlatformEndX = safeSpaceWidth; // kijk waar het laatste platform eindigt
+    const heights = [ // Fixed heights for the platforms
+        groundLevelY - 150, // Low
+        groundLevelY - 275, // Medium
+        groundLevelY - 400, // High
+        groundLevelY - 550  // Very high
+    ].filter(h => h > 50); // Filter to ensure heights are not below 50
+
+    let safeSpaceWidth = 700; // Space before the platforms + enemies spawn
+    let lastPlatformEndX = safeSpaceWidth; // Start platforms after the safe space
+
+    const heightGaps = { // Different gaps between height platforms
+        [groundLevelY - 150]: { min: 100, max: 200 }, // Low height gap range
+        [groundLevelY - 275]: { min: 150, max: 250 }, // Medium height gap range
+        [groundLevelY - 400]: { min: 200, max: 300 }, // High height gap range
+        [groundLevelY - 550]: { min: 50, max: 150 }, // Very high height gap range
+    };
 
     if (platformImageArray.length === 0) {
         console.error("Platform image array is empty! Cannot generate platforms.");
         return;
     }
 
-    for (let i = 0; i < num; i++) {
-        let platformCount = Math.floor(Math.random() * 5) + 2; // Kies 2-5 platforms tegelijk
-        let currentClusterX = lastPlatformEndX + minGap + Math.random() * 150; // voeg ruimte tussen de platforms toe
+    for (let i = 0; i < num; i++) { 
+        // Randomize the number of platforms in the cluster
+        const numberOfHeights = Math.floor(Math.random() * heights.length) + 1; // Random between 1 and number of heights
+        const shuffledHeights = heights.sort(() => 0.5 - Math.random()); // Shuffle heights array
+        const selectedHeights = shuffledHeights.slice(0, numberOfHeights); // Select a random number of heights
 
-        // de platforms worden op een random hoogte geplaatst
-        for (let j = 0; j < platformCount; j++) {
-            // een random image uit de platformImageArray kiezen
-            const randomImageIndex = Math.floor(Math.random() * platformImageArray.length);
+        let clusterX = lastPlatformEndX; // Start position for the cluster
+
+        // For each selected height, create a platform
+        for (let j = 0; j < selectedHeights.length; j++) {
+            const currentHeight = selectedHeights[j];
+            const randomImageIndex = Math.floor(Math.random() * platformImageArray.length); // Random image selection
             const selectedImage = platformImageArray[randomImageIndex];
 
-            let platformHeight = heights[Math.floor(Math.random() * heights.length)]; // kiest een random hoogte uit de beschikbare hoogtes
-            let platformX = currentClusterX;
-
-            // Create platform met de image 
-            const newPlatform = new Platform({
-                x: platformX,
-                y: platformHeight,
-                image: selectedImage 
+            const newPlatform = new Platform({ 
+                x: clusterX,
+                y: currentHeight,
+                image: selectedImage
             });
-            platforms.push(newPlatform); // voeg de nieuwe platform toe aan de lijst
 
-            // Update waar de volgende platform moet komen
-            currentClusterX = platformX + newPlatform.width + minGap / 2 + Math.random() * 50;
+            platforms.push(newPlatform);
+
+            // Calculate the gap for this platform's height and adjust the position for the next platform
+            const gapRange = heightGaps[currentHeight];
+            const randomGap = Math.random() * (gapRange.max - gapRange.min) + gapRange.min;
+            clusterX += randomGap; // Move to the next position for the next platform
         }
-         lastPlatformEndX = currentClusterX;
+
+        // Update lastPlatformEndX after all platforms in this cluster are placed
+        lastPlatformEndX = clusterX; // Set position for the next cluster
     }
 }
 
+// water pit generation
+function generateDeathPits(numPits) {
+    deathPits.length = 0; // haal bestaande pits weg
+    const groundLevelY = canvas.height - groundHeight; 
+    const minPitWidth = 200; // minimale width van een pit
+    const maxPitWidth = 400; // maximale width van een pit
+    const minPitGap = 400;   // minimale ruimte tussen 2 pits
+    const maxPitGap = 800;   // maximale ruimte
+
+    let currentX = 1500; // begin positie van de pits (na de platforms)
+
+    for (let i = 0; i < numPits; i++) {
+        // bereken de positie van de pit
+        const gap = minPitGap + Math.random() * (maxPitGap - minPitGap);
+        currentX += gap;
+
+        // bereken de breedte van de pit
+        const pitWidth = minPitWidth + Math.random() * (maxPitWidth - minPitWidth);
+
+        // voeg de pit toe aan de deathPits array
+        deathPits.push({ x: currentX, width: pitWidth });
+
+        // update currentx voor de volgende pit
+        currentX += pitWidth;
+    }
+}
+// ------------------------------------
 
 
 generatePlatforms(0); // geen platforms totdat het spel start
+generateDeathPits(0); // geen pits totdat het spel start
 
 const keys = {
     right: { pressed: false }, //toetsen voor de speler
@@ -330,13 +507,15 @@ const keys = {
 let gameRunning = false;
 let imagesLoaded = 0;
 
-// update de totale images die moeten worden geladen
+
 const totalImages = layers.length // Background layers (incl. voorgrond)
                   + 1 // ondergrond
                   + Object.keys(platformImages).length // platform images
                   + 1 // Capy familie
-                  + 1; // player capybara
-// -----------------------------
+                  + capybaraWalk.length // alle player frames
+                  + waterFrames.length; // water animatie frames
+// ---------------------------------------------------------
+
 
 function startGameIfReady() {
     imagesLoaded++;
@@ -354,13 +533,13 @@ function startGameIfReady() {
         groundLayer.y = canvas.height - groundHeight; // ondergrond laag onderaan het canvas
 
         // Capy Family
+        if (capyFamily.image.naturalHeight > 0) { /* ... */ } else { /* ... */ }
         if (capyFamily.image.naturalHeight > 0) {
             const aspectRatio = capyFamily.image.naturalWidth / capyFamily.image.naturalHeight;
             capyFamily.drawWidth = capyFamily.drawHeight * aspectRatio;
-             // pas y aan op basis van de grond
             capyFamily.y = canvas.height - groundHeight - capyFamily.drawHeight - 5;
         } else {
-            capyFamily.drawWidth = 200; //width als de afbeelding nog niet is geladen
+            capyFamily.drawWidth = 200;
             capyFamily.y = canvas.height - groundHeight - capyFamily.drawHeight - 5;
         }
 
@@ -370,11 +549,21 @@ function startGameIfReady() {
         player.velocity.x = 0;
         player.velocity.y = 0;
         player.onGround = false;
+        player.currentFrame = player.frames.idle;
+        player.walkFrameIndex = 0;
+        player.animationTimer = 0;
+        player.scaleX = 1;
+
         scrollOffset = 0;
         capyFamily.x = 10;
         capyFamily.showText = true;
 
+        currentPlayerMoveSpeed = basePlayerMoveSpeed; // Reset speed
+
         generatePlatforms(30); // Generate platforms in het begin
+        
+        generateDeathPits(15); // Generate some initial pits 
+        
 
         score = 0; // reset score
         gameRunning = true;
@@ -390,29 +579,45 @@ function animate(){
     requestAnimationFrame(animate); //roept de functie opnieuw aan, waardoor er een animatie ontstaat
     c.clearRect(0, 0, canvas.width, canvas.height); //maakt het canvas leeg
 
+    // update de snelheid op basis van de score
+    let speedProgress = Math.min(score / scoreForMaxSpeed, 1.0);
+    currentPlayerMoveSpeed = basePlayerMoveSpeed + (maxPlayerMoveSpeed - basePlayerMoveSpeed) * speedProgress;
+    currentPlayerMoveSpeed = Math.min(currentPlayerMoveSpeed, maxPlayerMoveSpeed);
+
+    // water animatie 
+    waterAnimationTimer++;
+    if (waterAnimationTimer >= waterAnimationSpeed) {
+        waterAnimationTimer = 0;
+        currentWaterFrameIndex++;
+        if (currentWaterFrameIndex >= waterFrames.length) {
+            currentWaterFrameIndex = 0;
+        }
+    }
+    const currentWaterFrame = waterFrames[currentWaterFrameIndex];
+
     let scrollSpeed = 0;
     let scoredThisFrame = false; // dubbele scrolling voorkomen
 
-    // beweging van de capybara & Scrolling logic
+    // beweging van de capybara & Scrolling logic using currentPlayerMoveSpeed
     if (keys.right.pressed && player.position.x < canvas.width * 0.4) {
-        player.velocity.x = playerMoveSpeed; //verander de snelheid van de speler naar rechts
-    } else if (keys.left.pressed && player.position.x > canvas.width * 0.2) { //als de toets ingedrukt is en de speler is niet buiten het canvas
-        player.velocity.x = -playerMoveSpeed; //verander de snelheid van de speler naar links
+        player.velocity.x = currentPlayerMoveSpeed;
+    } else if (keys.left.pressed && player.position.x > canvas.width * 0.2) {
+        player.velocity.x = -currentPlayerMoveSpeed;
     } else {
-        player.velocity.x = 0; //als de toets niet ingedrukt is, stopt de speler met bewegen
+        player.velocity.x = 0;
 
-        // Scrolling begint als de speler meer dan 40% van het canvas is
+        // Scrolling
         if (keys.right.pressed) {
-            scrollSpeed = playerMoveSpeed;
-            if (!scoredThisFrame) { score += pointsPerScrollTick; scoredThisFrame = true; }
-            platforms.forEach((platform) => { platform.position.x -= scrollSpeed; }); //als de speler naar rechts beweegt, beweegt de platform ook naar links
-            capyFamily.x -= scrollSpeed; // scroll familie image
+            scrollSpeed = currentPlayerMoveSpeed;
+            platforms.forEach((platform) => { platform.position.x -= scrollSpeed; });
+            deathPits.forEach((pit) => { pit.x -= scrollSpeed; });
+            capyFamily.x -= scrollSpeed;
 
         } else if (keys.left.pressed && scrollOffset > 0) {
-            scrollSpeed = -playerMoveSpeed;
-             if (!scoredThisFrame) { score += pointsPerScrollTick; scoredThisFrame = true; }
-            platforms.forEach((platform) => { platform.position.x -= scrollSpeed; }); //als de speler naar links beweegt, beweegt de platform ook naar rechts
-             capyFamily.x -= scrollSpeed; // scroll familie image
+            scrollSpeed = -currentPlayerMoveSpeed;
+            platforms.forEach((platform) => { platform.position.x -= scrollSpeed; });
+            deathPits.forEach((pit) => { pit.x -= scrollSpeed; });
+             capyFamily.x -= scrollSpeed;
         }
     }
 
@@ -425,11 +630,75 @@ function animate(){
         layer.draw();
     });
 
-    // 2. ondergrond (wordt over de parralax lagen heen getekend)
-    groundLayer.update(scrollSpeed);
+
+
+    // 2. Teken de grondlaag met pits door gebruik te maken van clipping (clipping = stukken uit de grond halen en alleen in die plekken mag water)
+    groundLayer.update(scrollSpeed); // update de positie eerst
+
+    c.save(); // save canvas eerst
+    c.beginPath(); 
+
+    const groundY = canvas.height - groundHeight; // y positie waar de grond/water begint
+    let lastSafeX = 0; // Begin met de laatste veilige x positie (waar de speler kan staan)
+
+
+    deathPits.sort((a, b) => a.x - b.x); // sorteer de pits op x positie (van links naar rechts)
+
+    // Loop door de death pits en maak een clipping path
+    deathPits.forEach(pit => {
+        // bereken het einde van de veilige x positie
+        const safeEndX = Math.max(lastSafeX, pit.x);
+
+        // voeg een rect toe voor de veilige x positie
+        if (safeEndX > lastSafeX) {
+            c.rect(lastSafeX, groundY, safeEndX - lastSafeX, groundHeight);
+        }
+        // update het beginpunt voor de volgende pit
+        lastSafeX = Math.max(lastSafeX, pit.x + pit.width);
+    });
+
+    // voeg het laatste veilige rect toe (tot het einde van het canvas)
+    if (lastSafeX < canvas.width) {
+        c.rect(lastSafeX, groundY, canvas.width - lastSafeX, groundHeight);
+    }
+    // voeg een rect toe voor de bovenkant van de grondlaag
+    // dit voorkomt dat de grondlaag ook boven de pits wordt getekend
+    c.rect(0, 0, canvas.width, groundY);
+
+
+    c.clip(); 
+
+    // teken de grond laag
     groundLayer.draw();
 
-    // 3. capy familie
+    c.restore(); // restore canvas na het tekenen van de grondlaag
+
+    // 3. teken de geanimeerde water pits
+    if (currentWaterFrame && currentWaterFrame.complete && currentWaterFrame.naturalWidth > 0) {
+        const waterTileWidth = currentWaterFrame.naturalWidth;
+
+        deathPits.forEach(pit => {
+            // check of de pit binnen het canvas valt voordat je gaat tekenen
+            if (pit.x + pit.width > 0 && pit.x < canvas.width) {
+                // image van het water horizontaal in de pit tekenen
+                for (let tileX = 0; tileX < pit.width; tileX += waterTileWidth) {
+                    const drawW = Math.min(waterTileWidth, pit.width - tileX);
+                    c.drawImage(
+                        currentWaterFrame,
+                        0, 0, 
+                        drawW, currentWaterFrame.naturalHeight,
+                        pit.x + tileX, groundY, 
+                        drawW, groundHeight 
+                    );
+                }
+            }
+        });
+    }
+    
+
+
+    // 4. capy familie (wordt getekend na ondergrond en water)
+    if (capyFamily.image.complete && capyFamily.image.naturalHeight !== 0 && capyFamily.drawWidth > 0) { /* ... */ }
     if (capyFamily.image.complete && capyFamily.image.naturalHeight !== 0 && capyFamily.drawWidth > 0) {
         c.drawImage(
             capyFamily.image,
@@ -438,24 +707,60 @@ function animate(){
             capyFamily.drawWidth,
             capyFamily.drawHeight
         );
-
-        if (scrollOffset > 300) { capyFamily.showText = false; } //haal de tekst weg na 300 pixels
+        if (scrollOffset > 300) { capyFamily.showText = false; }
         if (capyFamily.showText && capyFamily.x + capyFamily.drawWidth > 0 && capyFamily.x < canvas.width) {
              c.font = 'bold 20px Arial';
-             c.fillStyle = 'white'; // Color used here for text
+             c.fillStyle = 'white';
              c.textAlign = 'center';
              c.fillText(capyFamily.text, capyFamily.x + capyFamily.drawWidth / 2, capyFamily.y - 15);
         }
     }
 
 
-    // 4. teken platforms (Now drawn with images)
+    // 5. teken platforms met imgs
     platforms.forEach(platform =>{
         platform.draw(); // Draw method now uses drawImage
+
+        // item collision
+        if ( // als de speler de appel raakt 
+            platform.item && 
+            !platform.item.collected && 
+            platform.checkCollision(player)
+        ) { 
+            console.log("player touched the item");
+            score += 1; //verander de score
+            // platform.item.opacity = 0; // maak de appel transparant
+            platform.item.collected = true; // verwijder de appel
+
+            setTimeout(() => {
+                platform.item.collected = false; // reset de appel
+            }, 5000); // 5 seconden wachten voordat de appel weer verschijnt
+        }
+
+        if (platform.item && !platform.item.collected) { // als de appel nog niet is aangeraakt en de appel is geladen
+            platform.item.x -= scrollSpeed; // scroll de appel met de platform
+        }        
+        // beweeg de appel (item) met het platform
     });
 
-    // 5. update capybara
-    player.update(); //update de speler
+    // 6. update capybara
+    player.update();
+
+    // water / death pit collision check 
+    const groundSurfaceY = canvas.height - groundHeight;
+    if (player.position.y + player.height > groundSurfaceY) { // check alleen als de speler on de ground level is
+        for (const pit of deathPits) {
+            // Check horizontale overlapping
+            if (player.position.x < pit.x + pit.width && // speler is links van de pit
+                player.position.x + player.width > pit.x)   // spele is rechts van de pit
+            {
+                // speler is in de pit
+                console.log("Game Over! Player fell into a pit. Final Score:", Math.floor(score));
+                gameRunning = false; // Stop the game loop
+                break; 
+            }
+        }
+    }
 
     // scroll update
     if(scrollSpeed !== 0 && player.velocity.x === 0) {
@@ -468,14 +773,15 @@ function animate(){
     c.textAlign = 'center';
     c.fillText(`Score: ${Math.floor(score)}`, canvas.width / 2, 40); // text in boven midden
 
-    // lose condition
-    const groundLevelY = canvas.height - groundHeight;
-    if (player.position.y > groundLevelY + 200) { // speler is onder de ondergrond
-        console.log("Game Over! Player fell too low. Final Score:", Math.floor(score));
+    displayHealth(); // toon de levens
+
+    if (player.position.y > canvas.height + 200) { 
+        console.log("Game Over! Player fell off screen. Final Score:", Math.floor(score));
         gameRunning = false; // Stop de game loop
     }
 
-}
+
+} 
 
 // image loading
 
@@ -507,6 +813,7 @@ function setupImageLoadListener(imageObject, name) {
     }
 }
 
+
 if (totalImages === 0) {
     startGameIfReady();
 } else {
@@ -528,7 +835,19 @@ if (totalImages === 0) {
 
     // andere images
     setupImageLoadListener(capyFamily.image, "Capy Family");
-    setupImageLoadListener(capybara, "Player");
+
+
+    // de animatie images (player)
+    capybaraWalk.forEach((frame, index) => {
+        let frameName = (index === 0) ? "Player (Idle/Walk 0)" : `Player (Walk ${index})`;
+        setupImageLoadListener(frame, frameName);
+    });
+
+    // *** ADDED: Load Water Frames ***
+    waterFrames.forEach((frame, index) => {
+        setupImageLoadListener(frame, `Water (${index + 1})`);
+    });
+    // --------------------------------
 }
 
 
@@ -554,6 +873,7 @@ window.addEventListener('keydown', ({ key }) => { // Luistert naar de toetsenbor
     }
 });
 
+
 window.addEventListener('keyup', ({ key }) => { // Luistert naar de toetsenbord input
     switch (key.toLowerCase()) { // Zet hoofdletters om naar kleine letters voor consistentie
         case 'a': // 'A' toets
@@ -565,6 +885,7 @@ window.addEventListener('keyup', ({ key }) => { // Luistert naar de toetsenbord 
             break;
     }
 });
+
 
 window.addEventListener('resize', () => {
     console.log("Window resized");

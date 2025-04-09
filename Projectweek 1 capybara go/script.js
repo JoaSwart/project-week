@@ -347,8 +347,9 @@ class Enemy {
         this.width = 60; // breedte van de vijand
         this.height = 40; // hoogte van de vijand
         this.onGround = false; // of de vijand op de grond is
-        this.speed = 2; // pas aan voor snellere/slomere enemies
-        this.jumpPower = -20; // hoogte van de sprong
+        this.speed = 3; // pas aan voor snellere/slomere enemies
+        this.acceleration = 0.1; // versnelling van de vijand
+        this.jumpPower = -18; // hoogte van de sprong
 
         this.enemyImage = new Image();
         this.enemyImage.src = './images/spin.png'; // vijand afbeelding
@@ -360,9 +361,7 @@ class Enemy {
 
     update(playerPosition, deltaTime) {
         // 1. ZWAARTEKRACHT
-        if (!this.onGround) {
-            this.velocity.y += gravity; // Voeg zwaartekracht toe
-        }
+        this.velocity.y += gravity; 
         // 2. SPRINGEN
         this.jumpTimer -= deltaTime;
 
@@ -375,24 +374,32 @@ class Enemy {
         this.onGround = false;
         this.jumpTimer = 1000; // Pas de timing aan
     } else if (this.jumpTimer <= 0 && this.onGround) {
-        // als er geen platform is, spring dan alsnog af en toe. 
+        // Indien geen platform, spring dan alsnog af en toe.
         this.velocity.y = this.jumpPower;
         this.onGround = false;
         this.jumpTimer = Math.random() * 2000 + 500;
     }
-        
+
     const deltaX = playerPosition.x - this.position.x; 
     const deltaY = playerPosition.y - this.position.y;
 
         // 3. BEWEGEN EN ACHTERVOLGEN VAN PLAYER
-    if (deltaX > 5) {
-        this.velocity.x = this.speed;
-    } else if (deltaX < -5) {
-            this.velocity.x = -this.speed;
-    } else {
-        this.velocity.x = 0; // stop met bewegen als de vijand dichtbij de speler is
-    }
-        
+        if (deltaX > 5) {
+            this.velocity.x += this.acceleration;
+            if (this.velocity.x > this.speed) this.velocity.x = this.speed; // Limiteer de snelheid
+        } else if (deltaX < -5) {
+            this.velocity.x -= this.acceleration;
+            if (this.velocity.x < -this.speed) this.velocity.x = -this.speed; // Limiteer de snelheid
+        } else {
+            // Vertraag de vijand geleidelijk
+            if (this.velocity.x > 0) {
+                this.velocity.x -= this.acceleration;
+                if (this.velocity.x < 0) this.velocity.x = 0;
+            } else if (this.velocity.x < 0) {
+                this.velocity.x += this.acceleration;
+                if (this.velocity.x > 0) this.velocity.x = 0;
+            }
+        }
         
     if (deltaY < -50 && this.onGround) {
         // Kijk of er een platform boven de vijand zit én onder de speler
@@ -417,41 +424,38 @@ class Enemy {
         this.onGround = false;
     }
 
-        // 5. BEWEEG SPIN
+    // 5. BEWEEG SPIN
     this.position.x += this.velocity.x;
     this.position.y += this.velocity.y;
-
+    
     platforms.forEach(platform => {
         if (
             this.velocity.y >= 0 && // De vijand beweegt naar beneden
             this.position.y + this.height >= platform.position.y && // Onderkant van de vijand raakt het platform
             this.position.y + this.height - this.velocity.y <= platform.position.y + 1 && // De vijand was boven het platform
             this.position.x + this.width > platform.position.x && // De vijand overlapt horizontaal met het platform
-            this.position.x < platform.position.x + platform.width
-        ) {
-            this.velocity.y = 0; // Stop de verticale snelheid (val niet verder)
-            this.position.y = platform.position.y - this.height; // Zet de vijand boven het platform
-            this.onGround = true; // De vijand staat op het platform
-        }
-    })
+            this.position.x < platform.position.x + platform.width // De vijand overlapt horizontaal met het platform
+            ) {
+                this.velocity.y = 0; // Stop de verticale snelheid (val niet verder)
+                this.position.y = platform.position.y - this.height; // Zet de vijand boven het platform
+                this.onGround = true; // De vijand staat op het platform
+            }
+        })
         // Controleer of de enemy de grond heeft geraakt (grondhoogte is afhankelijk van jouw spel)
         const groundY = canvas.height - groundHeight; // De Y-positie van de grond
         if (this.position.y + this.height >= groundY) {
             this.position.y = groundY - this.height; // Zet de Y-positie gelijk aan de grond
             this.velocity.y = 0; // Stop de val
-            this.onGround = true; // Markeer dat de enemy op de grond is
-        } else {
-            this.onGround = false; // De enemy is niet op de grond als hij niet op de grond komt
+            this.onGround = true; // Markeer dat de vijand op de grond is
         }
     }
-
 
     draw() {
         c.drawImage(this.enemyImage, this.position.x, this.position.y, this.width, this.height);
     } 
 
     findNextPlatform(playerPosition) {
-        let bestPlatform = null;
+        let bestPlatform = null; 
         let bestDistance = Infinity;
     
         platforms.forEach(platform => {

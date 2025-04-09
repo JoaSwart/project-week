@@ -16,12 +16,9 @@ const maxPlayerMoveSpeed = 12;   // de maximum speed
 const scoreForMaxSpeed = 2000; // score waar de max speed is 
 let currentPlayerMoveSpeed = basePlayerMoveSpeed; 
 
-
-// images
-
+// IMAGES
 const groundImage = new Image();
 groundImage.src = 'images/Ondergrond.png';
-
 
 const capyFamilyImage = new Image();
 capyFamilyImage.src = 'images/capyfamily.png';
@@ -40,7 +37,6 @@ const capybaraWalk = [
 capybaraWalk[1].src = 'images/capywalk2.png';
 capybaraWalk[2].src = 'images/capywalk3.png';
 capybaraWalk[3].src = 'images/capywalk4.png';
-
 
 // platform images
 const platformImages = {
@@ -158,18 +154,16 @@ const layers = [
 // ondergrond laag
 const groundLayer = new Layer('images/Ondergrond.png', 1.0, groundHeight);
 
-
 // capybara familie
 const capyFamily = {
     image: capyFamilyImage,
     x: 10,
     y: 0, // hetzelfde als de ondergrond
     drawWidth: 0,
-    drawHeight: 90,
+    drawHeight: 110,
     text: "We're hungry!",
     showText: true,
 };
-
 
 class Player {
     constructor(){
@@ -181,8 +175,8 @@ class Player {
             x: 0,
             y: 0
         }
-        this.width = 60 //breedte en hoogte van de speler (Used for collision AND drawing dimensions)
-        this.height = 60
+        this.width = 80 //breedte en hoogte van de speler (Used for collision AND drawing dimensions)
+        this.height = 80
         this.onGround = false; // onground status
 
         // capybara animatie frames
@@ -200,7 +194,7 @@ class Player {
 
     draw(){
         c.save(); // save de huidige canvas staat
-        c.translate(this.position.x + this.width / 2, this.position.y + this.height / 2);
+        c.translate(this.position.x + this.width / 2, this.position.y + this.height / 2); // verander de positie van de speler
         c.scale(this.scaleX, 1);
 
         let frameToDraw = this.currentFrame;
@@ -248,8 +242,6 @@ class Player {
             this.animationTimer = 0; // reset de animatie timer
         }
 
-
-
         this.draw(); //teken de speler
         this.position.x += this.velocity.x; //verander de x-positie van de speler met de snelheid
         this.position.y += this.velocity.y; //verander de y-positie van de speler met de snelheid
@@ -275,8 +267,6 @@ class Player {
             }
         });
 
-
-
         // ground collision check (ondergrond dus niet op platform)
         const groundLevelY = canvas.height - groundHeight; // bereken de y positie van de ondergrond
         if (!this.onGround && this.position.y + this.height >= groundLevelY) {
@@ -292,10 +282,9 @@ class Player {
             this.velocity.y += gravity; //verander de snelheid van de speler met de zwaartekracht
         }
 
-    }
+    }   
 }
 
-// ENEMIES
 let enemies = [];
 let maxEnemies = 1; // max aantal enemies
 let spawnInterval = 3000; // 3 seconden
@@ -348,7 +337,7 @@ class Enemy {
         this.height = 40; // hoogte van de vijand
         this.onGround = false; // of de vijand op de grond is
         this.speed = 3; // pas aan voor snellere/slomere enemies
-        this.acceleration = 0.1; // versnelling van de vijand
+        this.acceleration = 0.07; // versnelling van de vijand
         this.jumpPower = -18; // hoogte van de sprong
 
         this.enemyImage = new Image();
@@ -569,7 +558,6 @@ class Platform{
     }
 }
 
-
 const player = new Player() //maak een speler aan
 const platforms = [] //lege array voor random platforms
 // water / death pits 
@@ -755,7 +743,6 @@ function startGameIfReady() {
         
         generateDeathPits(15); // Generate some initial pits 
         
-
         score = 0; // reset score
         gameRunning = true;
         animate(); // Start the animation loop
@@ -994,6 +981,10 @@ function animate(){
     }
 } 
 
+function updateHealthDisplay() {
+    healthDisplay = "❤️".repeat(health); // Maak de healthDisplay string op basis van het aantal levens
+}
+
 // image loading
 
 function setupImageLoadListener(imageObject, name) {
@@ -1005,7 +996,6 @@ function setupImageLoadListener(imageObject, name) {
          startGameIfReady();
         return; // stop met de setup
     }
-
 
     imageObject.onload = () => {
         console.log(`${name} image loaded.`);
@@ -1078,9 +1068,9 @@ window.addEventListener('keydown', ({ key }) => { // Luistert naar de toetsenbor
         case ' ': // Spatiebalk als alternatief voor 'W'
             if (player.onGround) { // spring alleen als de speler op de grond is of op een platform
                  player.velocity.y = -jumpHeight; // Spring omhoog
+                 playJumpSound(); // Speel het springgeluid af
             }
             break;
-
     }
 });
 

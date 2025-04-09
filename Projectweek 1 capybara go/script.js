@@ -16,6 +16,28 @@ const maxPlayerMoveSpeed = 12;   // de maximum speed
 const scoreForMaxSpeed = 2000; // score waar de max speed is 
 let currentPlayerMoveSpeed = basePlayerMoveSpeed; 
 
+// verschillende items die spawnen ipv alleen maar appels:
+const itemTypes = [
+    {name: 'appel', image: 'images/red-apple.png', probability: 0.85},
+    {name: 'hart', image: 'images/hart.png', probability: 0.15},
+]
+
+let cumulativeProbability = 0;
+itemTypes.forEach(item => {
+    cumulativeProbability += item.probability;
+    item.cumulativeProbability = cumulativeProbability;
+})
+
+function chooseRandomItem() {
+    const randomNumber = Math.random();
+    for (const item of itemTypes) {
+        if (randomNumber <= item.cumulativeProbability) {
+            return item;
+        }
+    }
+    return itemTypes[itemTypes.length - 1]; // Return the last item if none matched
+}
+
 // IMAGES
 const groundImage = new Image();
 groundImage.src = 'images/Ondergrond.png';
@@ -37,6 +59,15 @@ const capybaraWalk = [
 capybaraWalk[1].src = 'images/capywalk2.png';
 capybaraWalk[2].src = 'images/capywalk3.png';
 capybaraWalk[3].src = 'images/capywalk4.png';
+
+// aanval frames
+const capybaraAttack = [
+    capybaraIdle, //idle image is de eerste frame van de animate
+    new Image(),
+    new Image(),
+];
+capybaraAttack[1].src = 'images/attack-2.png';
+capybaraAttack[2].src = 'images/attack-3.png';
 
 // platform images
 const platformImages = {
@@ -190,6 +221,15 @@ class Player {
         this.animationSpeed = 6; // lager nummer= snellere animatie
 
         this.scaleX = 1; // 1 voor rechts, -1 voor links
+
+        // aanval animatie
+        this.attackFrameIndex = 0; // index voor de attack frames
+        this.attackAnimationTimer = 0; // timer voor de animatie
+        this.attackAnimationSpeed = 6; // lager nummer = snellere animatie
+
+        this.isAttacking = false;
+        this.attackRange = 150; // bereik van de aanval
+        this.attackDamage = 1; // schade van de aanval
     }
 
     draw(){
@@ -212,12 +252,44 @@ class Player {
         c.restore();
     }
 
+    // aanval functie
+    attack() {
+        if (!this.isAttacking) {
+            this.isAttacking = true;
+            this.attackFrameIndex = 0; // Reset de animatie-index
+            this.attackAnimationTimer = 0; // Reset de animatie-timer
+            setTimeout(() => {
+                this.isAttacking = false;
+            }, 500);
+        }
+    }
+
     update(){
         // update de positie van de speler
         if (keys.left.pressed) {
             this.scaleX = -1; // naar links
         } else if (keys.right.pressed) {
             this.scaleX = 1;  // naar rechts
+        }
+
+        // check of de aanval de vijand raakt
+        if (this.isAttacking) {
+            enemies.forEach((enemy, index) => { //
+                // Bereken de middelpunten van de speler en de vijand
+                const playerCenterX = this.position.x + this.width / 2;
+                const playerCenterY = this.position.y + this.height / 2;
+                const enemyCenterX = enemy.position.x + enemy.width / 2;
+                const enemyCenterY = enemy.position.y + enemy.height / 2;
+
+                // Bereken de afstand tussen de middelpunten
+                const distanceX = playerCenterX - enemyCenterX;
+                const distanceY = playerCenterY - enemyCenterY;
+                const distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY);
+
+                if (distance < this.attackRange) {
+                    enemies.splice(index, 1);
+                }
+            });
         }
 
         // animatie logica
@@ -480,38 +552,38 @@ class Enemy {
 // class voor de platforms
 class Platform{
     // constructor gebruikt images ipv random breedte en hoogte
-    constructor({x, y, image}){ 
+    constructor({ x, y, image }) {
         this.position = {
             x,
             y
-        }
-        this.image = image; 
+        };
+        this.image = image;
 
-        // width en height worden bepaald door de afbeelding
-        // checks of de afbeelding is geladen
         if (this.image && this.image.naturalWidth > 0) {
-             this.width = this.image.naturalWidth * platformScaleFactor;
-             this.height = this.image.naturalHeight * platformScaleFactor;
+            this.width = this.image.naturalWidth * platformScaleFactor;
+            this.height = this.image.naturalHeight * platformScaleFactor;
         } else {
-            // fallback groottes als de images niet geladen zijn
             console.warn(`Platform image not ready or invalid for Platform at ${x},${y}. Using fallback size.`);
-            this.width = 100; // Example fallback
-            this.height = 20;  // Example fallback
+            this.width = 100;
+            this.height = 20;
         }
 
-        const redApple = new Image();
-        redApple.src = 'images/red-apple.png';
+        const chosenItem = chooseRandomItem();
+        const itemImage = new Image();
+        itemImage.src = chosenItem.image; // Gebruik chosenItem.image als src
+
         this.itemSize = 40;
-        this.item = { // appel object, fading-out en opacity erbij geplaatst
-            x: this.position.x + this.width / 2 - this.itemSize / 2, // x position van de items
-            y: this.position.y - this.itemSize, // y position van de items
+        this.item = {
+            x: this.position.x + this.width / 2 - this.itemSize / 2,
+            y: this.position.y - this.itemSize,
             width: this.itemSize,
             height: this.itemSize,
-            image: redApple, // appel foto
-            opacity: 1, // transparantie van de appel, word 0 als het aangeraakt is
-            fadingOut: false // of de appel aan het vervagen is
-        } 
-    } 
+            image: itemImage,
+            opacity: 1,
+            fadingOut: false,
+            name: chosenItem.name,
+        };
+    }
 
     draw(){
         // teken de image als het goed is geladen 
@@ -571,19 +643,35 @@ let score = 0;
 
 // HEALTH //
 let health = 3; // begin met 3 levens
-let healthDisplay = "❤️❤️❤️"; // begin met 3 levens
+const maxHealth = 3; // max levens
 
-function getHealthDisplay() {
-    return healthDisplay
-}
+const fullhealthImage = new Image();
+fullhealthImage.src = 'health-bar/full-health.png'; // afbeelding voor de levens
+const twohealthImage = new Image();
+twohealthImage.src = 'health-bar/two-health.png'; // afbeelding voor 2 levens
+const onehealthImage = new Image();
+onehealthImage.src = 'health-bar/one-health.png'; // afbeelding voor 1 leven
+const nohealthImage = new Image();
+nohealthImage.src = 'health-bar/no-health.png'; // afbeelding voor geen levens
+
+// Initialiseer currenthealthImage aan het begin van het spel
+let currenthealthImage = fullhealthImage;
 
 function displayHealth() {
-    c.font = '24px Arial';
-    c.fillStyle = 'white';
-    c.textAlign = 'left';
-    c.fillText(`Health: ${getHealthDisplay()}`, 20, 40); // text in boven links
+    c.drawImage(currenthealthImage, 20, 20, 250, 100); // teken de health bar
 }
 
+function updateHealthDisplay() {
+    if (health === 3) {
+        currenthealthImage = fullhealthImage;
+    } else if (health === 2) {
+        currenthealthImage = twohealthImage;
+    } else if (health === 1) {
+        currenthealthImage = onehealthImage;
+    } else {
+        currenthealthImage = nohealthImage;
+    }
+}
 // platform logica
 function generatePlatforms(num) {
     platforms.length = 0; // Clear existing platforms
@@ -892,29 +980,32 @@ function animate(){
     }
 
     // 5. teken platforms met imgs
-    platforms.forEach(platform =>{
-        platform.draw(); // Draw method now uses drawImage
+    platforms.forEach(platform => {
+        platform.draw();
 
-        // item collision
-        if ( // als de speler de appel raakt 
-            platform.item && 
-            !platform.item.collected && 
-            platform.checkCollision(player)
-        ) { 
-            console.log("player touched the item");
-            score += 1; //verander de score
-            // platform.item.opacity = 0; // maak de appel transparant
-            platform.item.collected = true; // verwijder de appel
+        if (platform.item && !platform.item.collected && platform.checkCollision(player)) { // check of de speler de appel raakt
+            console.log("player raakte het item");
+            if (platform.item.name === "hart") { // als de item een hart is
+                if (health < maxHealth) { // als de geraakte item een hart is en onder de maxhealth zit
+                    health++; // health omhoog
+                    platform.item.collected = true; //item gecollecteerd
 
-            setTimeout(() => {
-                platform.item.collected = false; // reset de appel
-            }, 5000); // 5 seconden wachten voordat de appel weer verschijnt
+                    setTimeout(() => { // na een tijd word het hartje gecollecteerd gereset naar niet gecollecteerd zodat het weer spawnt
+                        platform.item.collected = false;
+                    }, 8000);
+                }
+            } else if (platform.item.name === "appel") { // als de item een appel is
+                score += 1;
+                platform.item.collected = true;
+                setTimeout(() => {
+                    platform.item.collected = false;
+                }, 5000);
+            }
         }
 
-        if (platform.item && !platform.item.collected) { // als de appel nog niet is aangeraakt en de appel is geladen
-            platform.item.x -= scrollSpeed; // scroll de appel met de platform
-        }        
-        // beweeg de appel (item) met het platform
+        if (platform.item && !platform.item.collected) {
+            platform.item.x -= scrollSpeed;
+        }
     });
 
     // 6. update capybara / player
@@ -973,7 +1064,8 @@ function animate(){
     c.textAlign = 'center';
     c.fillText(`Score: ${Math.floor(score)}`, canvas.width / 2, 40); // text in boven midden
 
-    displayHealth(); // toon de levens
+    updateHealthDisplay(); // update de health display
+    displayHealth(); // teken de health bar
 
     if (player.position.y > canvas.height + 200) { 
         console.log("Game Over! Player fell off screen. Final Score:", Math.floor(score));
@@ -981,12 +1073,7 @@ function animate(){
     }
 } 
 
-function updateHealthDisplay() {
-    healthDisplay = "❤️".repeat(health); // Maak de healthDisplay string op basis van het aantal levens
-}
-
 // image loading
-
 function setupImageLoadListener(imageObject, name) {
 
     if (!imageObject) {
@@ -1068,8 +1155,11 @@ window.addEventListener('keydown', ({ key }) => { // Luistert naar de toetsenbor
         case ' ': // Spatiebalk als alternatief voor 'W'
             if (player.onGround) { // spring alleen als de speler op de grond is of op een platform
                  player.velocity.y = -jumpHeight; // Spring omhoog
-                 playJumpSound(); // Speel het springgeluid af
             }
+            break;
+
+        case 'j': // 'J' toets
+            player.attack(); // aanval
             break;
     }
 });

@@ -295,8 +295,195 @@ class Player {
     }
 }
 
+// ENEMIES
+let enemies = [];
+let maxEnemies = 1; // max aantal enemies
+let spawnInterval = 3000; // 3 seconden
 
-// class voor de platforms
+// if score < 100, change max enemies, increase speed?
+// if score < 200, increase it more etc. etc.
+
+function spawnEnemyOnItem(item) { // spawnt de enemies op de items 
+    if (enemies.length < maxEnemies) {
+        const enemy = new Enemy({ x: item.x, y: item.y });
+        enemies.push(enemy);
+    }
+}
+
+setInterval(() => { 
+    // vind alle platforms met een actief item die nog niet zijn verzameld
+    const spawnablePlatforms = platforms.filter(p => p.item && !p.item.collected);
+    
+    // als er geen spawnbare platforms zijn, doe dan niets
+    if (spawnablePlatforms.length === 0) return;
+
+    // bereken de afstand van elk platform naar de speler
+    const playerPosition = player.position;
+    const distancePlatforms = spawnablePlatforms.map(p => {
+        const dist = Math.sqrt(Math.pow(p.item.x - playerPosition.x, 2) + Math.pow(p.item.y - playerPosition.y, 2)); // Euclidische afstand
+        return { platform: p, distance: dist };
+    });
+
+    // Sorteer platforms op basis van de afstand (oplopend)
+    distancePlatforms.sort((a, b) => a.distance - b.distance);
+
+    // Kies de tweede dichtstbijzijnde platform (of de eerstvolgende als er maar 1 is) zodat de enemy niet te dichtbij spawnt
+    const targetPlatform = distancePlatforms.length > 1 ? distancePlatforms[1].platform : distancePlatforms[0].platform;
+
+    // Spawn de enemy op dit platform
+    if (enemies.length < maxEnemies) {
+        enemies.push(new Enemy({
+            x: targetPlatform.item.x,
+            y: targetPlatform.item.y
+        }));
+    }
+}, spawnInterval);
+
+// class voor de vijanden
+class Enemy {
+    constructor(position) {
+        this.position = {x: position.x, y: position.y};
+        this.velocity = {x: 0, y: 0};
+        this.width = 60; // breedte van de vijand
+        this.height = 40; // hoogte van de vijand
+        this.onGround = false; // of de vijand op de grond is
+        this.speed = 2; // pas aan voor snellere/slomere enemies
+        this.jumpPower = -20; // hoogte van de sprong
+
+        this.enemyImage = new Image();
+        this.enemyImage.src = './images/spin.png'; // vijand afbeelding
+
+        this.patrolDistance = 100; // afstand die de vijand kan patrouilleren
+        this.initialPositionX = position.x; // beginpositie van de vijand
+        this.chasing = false; // of de vijand de speler achterna zit
+    }
+
+    update(playerPosition, deltaTime) {
+        // 1. ZWAARTEKRACHT
+        if (!this.onGround) {
+            this.velocity.y += gravity; // Voeg zwaartekracht toe
+        }
+        // 2. SPRINGEN
+        this.jumpTimer -= deltaTime;
+
+        // Platformdetectie en padberekening
+    const targetPlatform = this.findNextPlatform(playerPosition);
+
+    if (targetPlatform && this.jumpTimer <= 0) {
+        // Spring naar het volgende platform
+        this.velocity.y = this.jumpPower;
+        this.onGround = false;
+        this.jumpTimer = 1000; // Pas de timing aan
+    } else if (this.jumpTimer <= 0 && this.onGround) {
+        // als er geen platform is, spring dan alsnog af en toe. 
+        this.velocity.y = this.jumpPower;
+        this.onGround = false;
+        this.jumpTimer = Math.random() * 2000 + 500;
+    }
+        
+    const deltaX = playerPosition.x - this.position.x; 
+    const deltaY = playerPosition.y - this.position.y;
+
+        // 3. BEWEGEN EN ACHTERVOLGEN VAN PLAYER
+    if (deltaX > 5) {
+        this.velocity.x = this.speed;
+    } else if (deltaX < -5) {
+            this.velocity.x = -this.speed;
+    } else {
+        this.velocity.x = 0; // stop met bewegen als de vijand dichtbij de speler is
+    }
+        
+        
+    if (deltaY < -50 && this.onGround) {
+        // Kijk of er een platform boven de vijand zit én onder de speler
+        const targetPlatform = platforms.find(platform => {
+            const isAbove = platform.position.y + platform.height < this.position.y;
+            const isBetween = platform.position.y < playerPosition.y;
+            const isHorizontallyClose = 
+                playerPosition.x + 20 > platform.position.x &&
+                playerPosition.x < platform.position.x + platform.width;
+            return isAbove && isBetween && isHorizontallyClose;
+        });
+    
+        if (targetPlatform) {
+            this.velocity.y = this.jumpPower;
+            this.onGround = false;
+        }
+    }
+
+    // Spring indien nodig (bijvoorbeeld als de speler hoger is)
+    if (deltaY < -50 && this.onGround) {
+        this.velocity.y = this.jumpPower;
+        this.onGround = false;
+    }
+
+        // 5. BEWEEG SPIN
+    this.position.x += this.velocity.x;
+    this.position.y += this.velocity.y;
+
+    platforms.forEach(platform => {
+        if (
+            this.velocity.y >= 0 && // De vijand beweegt naar beneden
+            this.position.y + this.height >= platform.position.y && // Onderkant van de vijand raakt het platform
+            this.position.y + this.height - this.velocity.y <= platform.position.y + 1 && // De vijand was boven het platform
+            this.position.x + this.width > platform.position.x && // De vijand overlapt horizontaal met het platform
+            this.position.x < platform.position.x + platform.width
+        ) {
+            this.velocity.y = 0; // Stop de verticale snelheid (val niet verder)
+            this.position.y = platform.position.y - this.height; // Zet de vijand boven het platform
+            this.onGround = true; // De vijand staat op het platform
+        }
+    })
+        // Controleer of de enemy de grond heeft geraakt (grondhoogte is afhankelijk van jouw spel)
+        const groundY = canvas.height - groundHeight; // De Y-positie van de grond
+        if (this.position.y + this.height >= groundY) {
+            this.position.y = groundY - this.height; // Zet de Y-positie gelijk aan de grond
+            this.velocity.y = 0; // Stop de val
+            this.onGround = true; // Markeer dat de enemy op de grond is
+        } else {
+            this.onGround = false; // De enemy is niet op de grond als hij niet op de grond komt
+        }
+    }
+
+
+    draw() {
+        c.drawImage(this.enemyImage, this.position.x, this.position.y, this.width, this.height);
+    } 
+
+    findNextPlatform(playerPosition) {
+        let bestPlatform = null;
+        let bestDistance = Infinity;
+    
+        platforms.forEach(platform => {
+            const platformCenterX = platform.position.x + platform.width / 2;
+            const playerCenterX = playerPosition.x;
+            const distance = Math.abs(platformCenterX - playerCenterX);
+    
+            if (
+                platform.position.y + platform.height < this.position.y &&
+                platform.position.y < playerPosition.y &&
+                distance < bestDistance
+            ) {
+                bestPlatform = platform;
+                bestDistance = distance;
+            }
+        });
+    
+        return bestPlatform;
+    }
+
+    // collision met de speler
+    checkCollision(player) {
+        return (
+            player.position.x < this.position.x + this.width &&
+            player.position.x + player.width > this.position.x &&
+            player.position.y < this.position.y + this.height &&
+            player.position.y + player.height > this.position.y
+        );
+    }
+}
+
+
 // class voor de platforms
 class Platform{
     // constructor gebruikt images ipv random breedte en hoogte
@@ -612,12 +799,14 @@ function animate(){
             platforms.forEach((platform) => { platform.position.x -= scrollSpeed; });
             deathPits.forEach((pit) => { pit.x -= scrollSpeed; });
             capyFamily.x -= scrollSpeed;
+            enemies.forEach((enemy) => { enemy.position.x -= scrollSpeed; });
 
         } else if (keys.left.pressed && scrollOffset > 0) {
             scrollSpeed = -currentPlayerMoveSpeed;
             platforms.forEach((platform) => { platform.position.x -= scrollSpeed; });
             deathPits.forEach((pit) => { pit.x -= scrollSpeed; });
-             capyFamily.x -= scrollSpeed;
+            capyFamily.x -= scrollSpeed;
+            enemies.forEach((enemy) => { enemy.position.x -= scrollSpeed; }); 
         }
     }
 
@@ -630,8 +819,6 @@ function animate(){
         layer.draw();
     });
 
-
-
     // 2. Teken de grondlaag met pits door gebruik te maken van clipping (clipping = stukken uit de grond halen en alleen in die plekken mag water)
     groundLayer.update(scrollSpeed); // update de positie eerst
 
@@ -640,7 +827,6 @@ function animate(){
 
     const groundY = canvas.height - groundHeight; // y positie waar de grond/water begint
     let lastSafeX = 0; // Begin met de laatste veilige x positie (waar de speler kan staan)
-
 
     deathPits.sort((a, b) => a.x - b.x); // sorteer de pits op x positie (van links naar rechts)
 
@@ -695,8 +881,6 @@ function animate(){
         });
     }
     
-
-
     // 4. capy familie (wordt getekend na ondergrond en water)
     if (capyFamily.image.complete && capyFamily.image.naturalHeight !== 0 && capyFamily.drawWidth > 0) { /* ... */ }
     if (capyFamily.image.complete && capyFamily.image.naturalHeight !== 0 && capyFamily.drawWidth > 0) {
@@ -715,7 +899,6 @@ function animate(){
              c.fillText(capyFamily.text, capyFamily.x + capyFamily.drawWidth / 2, capyFamily.y - 15);
         }
     }
-
 
     // 5. teken platforms met imgs
     platforms.forEach(platform =>{
@@ -743,8 +926,34 @@ function animate(){
         // beweeg de appel (item) met het platform
     });
 
-    // 6. update capybara
+    // 6. update capybara / player
     player.update();
+
+    for (let i = enemies.length - 1; i >= 0; i--) { // Loop backwards om te voorkomen dat de array wordt aangepast tijdens de iteratie
+        const enemy = enemies[i]; // update de vijand
+        enemy.update(player.position, platforms);
+        enemy.draw(); // teken de vijand
+
+        // collision met speler
+        if (enemy.checkCollision(player)) {
+            // Botsing gedetecteerd
+            console.log("Player hit enemy!");
+
+            // Verwijder de vijand uit de array
+            enemies.splice(i, 1);
+
+            // Verminder het aantal levens
+            health--;
+            updateHealthDisplay(); // Update de healthDisplay string
+
+            // Controleer of de speler nog levens heeft
+            if (health <= 0) {
+                console.log("Game Over! No more health.");
+                gameRunning = false; // Stop het spel
+            }
+        }
+    }
+    
 
     // water / death pit collision check 
     const groundSurfaceY = canvas.height - groundHeight;
@@ -779,8 +988,6 @@ function animate(){
         console.log("Game Over! Player fell off screen. Final Score:", Math.floor(score));
         gameRunning = false; // Stop de game loop
     }
-
-
 } 
 
 // image loading

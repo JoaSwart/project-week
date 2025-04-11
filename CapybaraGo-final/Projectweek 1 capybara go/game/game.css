@@ -1,0 +1,326 @@
+body { 
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    color: #ffffff; 
+    margin: 0;
+    background-image: url('images/');
+    padding: 0;
+    display: flex; 
+    font-family: 'Pixelify sans', sans-serif;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh; 
+}
+
+
+.controls-screen {
+    text-align: center; 
+    max-width: 700px; 
+    width: 90%;
+}
+
+.title {
+        font-family: 'Pixelify sans', sans-serif; 
+        font-size: 3em; 
+        margin-bottom: 40px;
+        color: #FFFFFF; 
+        text-transform: uppercase;
+        letter-spacing: 3px;
+        text-shadow: 
+            -1px -1px 0 #000,  
+             1px -1px 0 #000, 
+            -1px  1px 0 #000, 
+             1px  1px 0 #000,
+             4px  4px 0 #444444; 
+    }
+
+
+.wasd-controls {
+    margin-bottom: 30px; 
+}
+
+.wasd-controls p {
+    font-family: 'Pixelify sans', sans-serif; 
+    margin-bottom: 15px; 
+    font-size: 1.2em; 
+    color: #ffffff; 
+}
+
+.wasd-keys {
+    display: block;      
+    margin: 10px auto;    
+    max-width: 200px;     
+    width: 80%;           
+    height: auto;         
+}
+
+
+
+.spacebar-image {
+    display: block;      
+    margin: 5px auto;    
+    max-width: 270px;    
+    width: 70%;           
+    height: auto;         
+} 
+
+.spacebar-controls { 
+     margin-bottom: 30px;
+}
+
+.spacebar p { 
+    font-family: 'Pixelify sans', sans-serif; 
+    font-size: 1.2em; 
+    margin-bottom: 5px; 
+    margin-top: 10px;
+    color: #ffffff; 
+}
+
+.start-button {
+    font-family: 'Pixelify sans', sans-serif;
+    display: inline-block; 
+    background-color: rgba(0, 0, 0, 0.4);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 5px 20px;
+    font-size: 1.2em; 
+    cursor: pointer; 
+    transition: background-color 0.2s ease, transform 0.1s ease; 
+    margin-top: 45px; 
+}
+
+.start-button:hover {
+    background-color: rgba(0, 0, 0, 0.5); 
+}
+
+.start-button:active {
+    background-color: rgba(0, 0, 0, 0.3);
+    transform: translate(2px, 2px); 
+}
+
+
+/* Styles voor Start Screen */
+
+.start-screen {
+    margin-top: 60px; 
+}
+
+.logo-image{
+    margin-bottom: 60px;
+    
+}
+
+.menu-button {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;  
+    padding: 15px 20px; 
+    margin: 0; 
+    line-height: normal;
+    background-image: url('images/button.png');
+    background-size: cover;
+     background-repeat: no-repeat;
+    background-position: center center; 
+    border: none; 
+    background-color: transparent; 
+    color: #ffffff; 
+    font-size: 1.7em; 
+    text-align: center;
+   font-family: inherit;
+    cursor: pointer;
+    transition: transform 0.1s ease, filter 0.2s ease; 
+}
+
+.menu-button span{
+   padding-bottom: 15px;
+}
+
+.menu-button:hover {
+    transform: scale(1.02);
+    filter: brightness(1.1);
+}
+
+.menu-button:active {
+    transform: scale(0.99);
+    filter: brightness(0.9);
+}
+
+.menu-button.start {
+    font-size: 1.7em;
+}
+
+
+a.button-link {
+    display: block;
+    max-width: 600px; 
+    width: 100%; 
+    margin: 20px auto; 
+    text-decoration: none;
+    color: inherit;
+}
+
+/* Settings Screen */
+
+.settings-screen {
+    text-align: center;
+    max-width: 600px; 
+    width: 90%;
+    padding: 30px;
+}
+
+.setting-item {
+    margin-bottom: 35px;
+    margin-top: 70px;
+}
+
+.setting-item label {
+    display: block; 
+    font-size: 1.4em;
+    margin-bottom: 15px; 
+    color: #ffffff; 
+    text-shadow: 1px 1px #555;
+}
+
+
+.slider-container {
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    width: 90%; 
+    margin: 0 auto; 
+    max-width: 400px;
+}
+
+
+input[type="range"] {
+    flex-grow: 1; 
+    margin-right: 15px;
+    cursor: pointer;
+    -webkit-appearance: none; 
+    appearance: none;
+    width: 100%; 
+    height: 10px; 
+    background: #555; 
+    border-radius: 5px; 
+    outline: none;
+}
+
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px; 
+    height: 20px; 
+    background: #ffffff; 
+    border-radius: 50%; 
+    cursor: pointer;
+    border: 1px solid #000; 
+}
+
+
+input[type="range"]::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    background: #00FFFF;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 1px solid #000;
+}
+
+
+.value-display {
+    font-size: 1.1em;
+    color: #ffffff;
+    min-width: 45px;
+    text-align: right;
+}
+
+
+.back-button-container {
+    margin-top: 40px; 
+}
+
+
+.back-button {
+   background-color: transparent;
+   border: none;
+   color: white;
+   font-family: 'Pixelify sans', sans-serif;
+   font-size: 1.5em;
+   cursor: pointer;
+}
+
+
+
+/* pauze scherm */
+.pauze-screen{
+    top: 0;
+    left: 0;
+    margin: 0;
+    width: 100vw;
+    height: 100vh;
+    backdrop-filter: blur(4px);
+    background-color: rgba(0, 0, 0, 0.2);
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    z-index: 1000;
+}
+
+
+.pause-menu-content {
+    text-align: center;
+    max-width: 500px;
+    width: 90%;  
+}
+
+.pause-buttons {
+    display: flex;
+    flex-direction: column; 
+    align-items: center; 
+    width: 100%; 
+    max-width: 350px; 
+    margin: 0 auto; 
+}
+
+/*gameover screen*/
+
+.game-over-body{
+    background-image: none;
+}
+
+.gameover-screen{
+    top: 0;
+    left: 0;
+    margin: 0;
+    width: 100vw;
+    height: 100vh;
+    backdrop-filter: blur(4px);
+    background-color: rgba(255, 0, 0, 0.16);
+    display: flex;  
+    /* display gaat naar flex in de JS */
+    justify-content: center; 
+    align-items: center; 
+    z-index: 1000;
+}
+
+.gameover-content{
+    text-align: center;
+    max-width: 500px;
+    width: 90%;  
+}
+
+#gameover-title{
+    margin: 0;
+}
+
+.scores{
+    font-size: 1.4em;
+}
+
+#tryagain{
+    margin: 0 !important;
+}

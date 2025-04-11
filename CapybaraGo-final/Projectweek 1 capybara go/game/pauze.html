@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Pause Menu</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="game.css">
+</head>
+<body>
+
+    <div class="pauze-screen" id="pauzescherm">
+        <div class="pause-menu-content">
+            <h1 class="title">Pauze Menu</h1>
+
+            <span id="pauze-score"></span>
+            <br><br>
+
+            <div class="pause-buttons">
+                
+                <button class="menu-button" id="continue-btn">
+                    <span>Continue</span>
+                </button>
+                <button class="menu-button" id="restart-btn">
+                    <span>Restart</span>
+                </button>
+                <button class="menu-button" id="sound-btn" onclick="window.location.href = '../start/settings.html';">
+                    <span>Sound</span>
+                </button>
+            
+                <a href="../start/controls.html"></a>
+                <button class="menu-button" id="controls-btn" onclick="window.location.href = 'controls-2.html';">                    <span>Controls</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

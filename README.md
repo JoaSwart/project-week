@@ -1,1 +1,1 @@
-A 2D platformer game. Play as a capybara dad and collect apples for your hungry family while dodging enemies and avoiding traps. Highscore based game, might change it to level based game in the future
+A 2D platformer game made in our first project week. Play as a capybara dad and collect apples for your hungry family while dodging enemies and avoiding traps. Highscore based game, might change it to level based game in the future
